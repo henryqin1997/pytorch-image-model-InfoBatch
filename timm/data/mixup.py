@@ -298,6 +298,7 @@ class FastCollateMixup(Mixup):
 
     def __call__(self, batch, _=None):
         batch_size = len(batch)
+        print(batch)
         assert batch_size % 2 == 0, 'Batch size should be even when using this'
         half = 'half' in self.mode
         if half:
