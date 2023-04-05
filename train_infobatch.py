@@ -31,7 +31,7 @@ import yaml
 from torch.nn.parallel import DistributedDataParallel as NativeDDP
 
 from timm import utils
-from timm.data import create_dataset, create_loader, create_loader_infobatch, resolve_data_config, Mixup, FastCollateMixup, AugMixDataset
+from timm.data import create_dataset, create_loader, create_loader_infobatch, resolve_data_config, Mixup, FastCollateMixup, FastCollateMixupInfoBatch, AugMixDataset
 from timm.layers import convert_splitbn_model, convert_sync_batchnorm, set_fast_norm
 from timm.loss import JsdCrossEntropy, SoftTargetCrossEntropy, SoftTargetCrossEntropyNoReduction, BinaryCrossEntropy, LabelSmoothingCrossEntropy
 from timm.models import create_model, safe_model_name, resume_checkpoint, load_checkpoint, model_parameters
@@ -609,7 +609,7 @@ def main():
         )
         if args.prefetcher:
             assert not num_aug_splits  # collate conflict (need to support deinterleaving in collate mixup)
-            collate_fn = FastCollateMixup(**mixup_args)
+            collate_fn = FastCollateMixupInfoBatch(**mixup_args)
         else:
             mixup_fn = Mixup(**mixup_args)
 
@@ -888,6 +888,8 @@ def train_one_epoch_infobatch(
     num_batches_per_epoch = len(loader)
     last_idx = num_batches_per_epoch - 1
     num_updates = epoch * num_batches_per_epoch
+
+    import pdb; pdb.set_trace()
 
     for batch_idx, (input, target, indices, weight) in enumerate(loader):
         last_batch = batch_idx == last_idx
