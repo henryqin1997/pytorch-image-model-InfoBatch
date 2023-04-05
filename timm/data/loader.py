@@ -233,7 +233,7 @@ class PrefetchLoaderInfoBatch:
                     next_input = self.random_erasing(next_input)
 
             if not first:
-                yield input, target
+                yield input, target, indices, weight
             else:
                 first = False
 
