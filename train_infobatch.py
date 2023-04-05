@@ -783,7 +783,7 @@ def main():
             )
 
             #infobatch modification
-            # setup learning rate schedule and starting epoch
+            # adjust learning rate schedule according to next epoch's step number
             updates_per_epoch = len(loader_train)
             lr_scheduler, num_epochs = create_scheduler_v2(
                 optimizer,
