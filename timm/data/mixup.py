@@ -313,5 +313,11 @@ class FastCollateMixup(Mixup):
         target = torch.tensor([b[1] for b in batch], dtype=torch.int64)
         target = mixup_target(target, self.num_classes, lam, self.label_smoothing, device='cpu')
         target = target[:batch_size]
-        return output, target
+
+        #InfoBatch Modification. If further score spliting is needed, modify here
+        indices = torch.tensor([b[2] for b in batch], dtype=torch.int64)
+        weights = torch.tensor([b[3] for b in batch], dtype=torch.float32)
+        #######################
+
+        return output, target, indices, weights
 
