@@ -22,6 +22,7 @@ from .distributed_sampler import OrderedDistributedSampler, RepeatAugSampler
 from .random_erasing import RandomErasing
 from .mixup import FastCollateMixup
 from .transforms_factory import create_transform
+from .infobatch import *
 
 _logger = logging.getLogger(__name__)
 
@@ -262,6 +263,132 @@ def create_loader(
                 sampler = RepeatAugSampler(dataset, num_repeats=num_aug_repeats)
             else:
                 sampler = torch.utils.data.distributed.DistributedSampler(dataset)
+        else:
+            # This will add extra duplicate entries to result in equal num
+            # of samples per-process, will slightly alter validation results
+            sampler = OrderedDistributedSampler(dataset)
+    else:
+        assert num_aug_repeats == 0, "RepeatAugment not currently supported in non-distributed or IterableDataset use"
+
+    if collate_fn is None:
+        collate_fn = fast_collate if use_prefetcher else torch.utils.data.dataloader.default_collate
+
+    loader_class = torch.utils.data.DataLoader
+    if use_multi_epochs_loader:
+        loader_class = MultiEpochsDataLoader
+
+    loader_args = dict(
+        batch_size=batch_size,
+        shuffle=not isinstance(dataset, torch.utils.data.IterableDataset) and sampler is None and is_training,
+        num_workers=num_workers,
+        sampler=sampler,
+        collate_fn=collate_fn,
+        pin_memory=pin_memory,
+        drop_last=is_training,
+        worker_init_fn=partial(_worker_init, worker_seeding=worker_seeding),
+        persistent_workers=persistent_workers
+    )
+    try:
+        loader = loader_class(dataset, **loader_args)
+    except TypeError as e:
+        loader_args.pop('persistent_workers')  # only in Pytorch 1.7+
+        loader = loader_class(dataset, **loader_args)
+    if use_prefetcher:
+        prefetch_re_prob = re_prob if is_training and not no_aug else 0.
+        loader = PrefetchLoader(
+            loader,
+            mean=mean,
+            std=std,
+            channels=input_size[0],
+            device=device,
+            fp16=fp16,  # deprecated, use img_dtype
+            img_dtype=img_dtype,
+            re_prob=prefetch_re_prob,
+            re_mode=re_mode,
+            re_count=re_count,
+            re_num_splits=re_num_splits
+        )
+
+    return loader
+
+def create_loader_infobatch(
+        dataset,
+        input_size,
+        batch_size,
+        is_training=False,
+        use_prefetcher=True,
+        no_aug=False,
+        re_prob=0.,
+        re_mode='const',
+        re_count=1,
+        re_split=False,
+        scale=None,
+        ratio=None,
+        hflip=0.5,
+        vflip=0.,
+        color_jitter=0.4,
+        auto_augment=None,
+        num_aug_repeats=0,
+        num_aug_splits=0,
+        interpolation='bilinear',
+        mean=IMAGENET_DEFAULT_MEAN,
+        std=IMAGENET_DEFAULT_STD,
+        num_workers=1,
+        distributed=False,
+        crop_pct=None,
+        crop_mode=None,
+        collate_fn=None,
+        pin_memory=False,
+        fp16=False,  # deprecated, use img_dtype
+        img_dtype=torch.float32,
+        device=torch.device('cuda'),
+        tf_preprocessing=False,
+        use_multi_epochs_loader=False,
+        persistent_workers=True,
+        worker_seeding='all',
+):
+    re_num_splits = 0
+    if re_split:
+        # apply RE to second half of batch if no aug split otherwise line up with aug split
+        re_num_splits = num_aug_splits or 2
+    dataset.transform = create_transform(
+        input_size,
+        is_training=is_training,
+        use_prefetcher=use_prefetcher,
+        no_aug=no_aug,
+        scale=scale,
+        ratio=ratio,
+        hflip=hflip,
+        vflip=vflip,
+        color_jitter=color_jitter,
+        auto_augment=auto_augment,
+        interpolation=interpolation,
+        mean=mean,
+        std=std,
+        crop_pct=crop_pct,
+        crop_mode=crop_mode,
+        tf_preprocessing=tf_preprocessing,
+        re_prob=re_prob,
+        re_mode=re_mode,
+        re_count=re_count,
+        re_num_splits=re_num_splits,
+        separate=num_aug_splits > 0,
+    )
+
+    if isinstance(dataset, IterableImageDataset):
+        # give Iterable datasets early knowledge of num_workers so that sample estimates
+        # are correct before worker processes are launched
+        dataset.set_loader_cfg(num_workers=num_workers)
+
+    sampler = None
+    if distributed and not isinstance(dataset, torch.utils.data.IterableDataset):
+        if is_training:
+            if num_aug_repeats:
+                sampler = RepeatAugSampler(dataset, num_repeats=num_aug_repeats)
+                print('using RepeatAugSampler, not adapted for InfoBatch yet!')
+            else:
+#                 sampler = torch.utils.data.distributed.DistributedSampler(dataset)
+                sampler = DistributedSamplerWrapper(dataset.pruning_sampler())
         else:
             # This will add extra duplicate entries to result in equal num
             # of samples per-process, will slightly alter validation results
