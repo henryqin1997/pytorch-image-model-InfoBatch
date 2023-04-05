@@ -578,7 +578,9 @@ def main():
         repeats=args.epoch_repeats,
     )
 
-    dataset_train = InfoBatch(dataset_train,ratio = 0.5, num_epochs = args.epochs, delta=0.85)
+    #infobatch
+    dataset_train = InfoBatch(dataset_train,ratio = 0.5, num_epoch = args.epochs, delta=0.85)
+    ##########
 
     dataset_eval = create_dataset(
         args.dataset,
