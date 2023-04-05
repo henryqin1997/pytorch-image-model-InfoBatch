@@ -779,7 +779,7 @@ def main():
                 loss_scaler=loss_scaler,
                 model_ema=model_ema,
                 mixup_fn=mixup_fn,
-                dataset_train
+                dataset_train=dataset_train
             )
 
             #infobatch modification
