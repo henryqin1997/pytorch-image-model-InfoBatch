@@ -687,8 +687,7 @@ def main():
         if args.bce_loss:
             train_loss_fn = BinaryCrossEntropy(smoothing=args.smoothing, target_threshold=args.bce_target_thresh,reduction='none')
         else:
-            print("Using LabelSmoothingCrossEntropy which is not adapted for InfoBatch")
-            train_loss_fn = LabelSmoothingCrossEntropy(smoothing=args.smoothing)
+            train_loss_fn = LabelSmoothingCrossEntropy(smoothing=args.smoothing,reduction='none')
     else:
         train_loss_fn = nn.CrossEntropyLoss(reduction='none')
     train_loss_fn = train_loss_fn.to(device=device)
