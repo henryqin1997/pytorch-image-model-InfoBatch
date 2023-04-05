@@ -30,10 +30,12 @@ class InfoBatch(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, index):
-        data, target= self.dataset[index]
+        data, target = self.dataset[index]
+        weight = self.weights[index]
         if self.transform:
             data = self.transform(data)
-        weight = self.weights[index]
+        elif self.dataset.transform:
+            data = dataset.transform(data)
         return data, target, index, weight
 
     def prune(self):
