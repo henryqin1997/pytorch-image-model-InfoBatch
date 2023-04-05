@@ -170,6 +170,106 @@ class PrefetchLoader:
         if isinstance(self.loader.collate_fn, FastCollateMixup):
             self.loader.collate_fn.mixup_enabled = x
 
+class PrefetchLoaderInfoBatch:
+
+    def __init__(
+            self,
+            loader,
+            mean=IMAGENET_DEFAULT_MEAN,
+            std=IMAGENET_DEFAULT_STD,
+            channels=3,
+            device=torch.device('cuda'),
+            img_dtype=torch.float32,
+            fp16=False,
+            re_prob=0.,
+            re_mode='const',
+            re_count=1,
+            re_num_splits=0):
+
+        mean = adapt_to_chs(mean, channels)
+        std = adapt_to_chs(std, channels)
+        normalization_shape = (1, channels, 1, 1)
+
+        self.loader = loader
+        self.device = device
+        if fp16:
+            # fp16 arg is deprecated, but will override dtype arg if set for bwd compat
+            img_dtype = torch.float16
+        self.img_dtype = img_dtype
+        self.mean = torch.tensor(
+            [x * 255 for x in mean], device=device, dtype=img_dtype).view(normalization_shape)
+        self.std = torch.tensor(
+            [x * 255 for x in std], device=device, dtype=img_dtype).view(normalization_shape)
+        if re_prob > 0.:
+            self.random_erasing = RandomErasing(
+                probability=re_prob,
+                mode=re_mode,
+                max_count=re_count,
+                num_splits=re_num_splits,
+                device=device,
+            )
+        else:
+            self.random_erasing = None
+        self.is_cuda = torch.cuda.is_available() and device.type == 'cuda'
+
+    def __iter__(self):
+        first = True
+        if self.is_cuda:
+            stream = torch.cuda.Stream()
+            stream_context = partial(torch.cuda.stream, stream=stream)
+        else:
+            stream = None
+            stream_context = suppress
+
+        for next_input, next_target, next_indices, next_weight in self.loader:
+
+            with stream_context():
+                next_input = next_input.to(device=self.device, non_blocking=True)
+                next_target = next_target.to(device=self.device, non_blocking=True)
+                next_indices = next_indices.to(device=self.device, non_blocking=True)
+                next_weight = next_weight.to(device=self.device, non_blocking=True)
+                next_input = next_input.to(self.img_dtype).sub_(self.mean).div_(self.std)
+                if self.random_erasing is not None:
+                    next_input = self.random_erasing(next_input)
+
+            if not first:
+                yield input, target
+            else:
+                first = False
+
+            if stream is not None:
+                torch.cuda.current_stream().wait_stream(stream)
+
+            input = next_input
+            target = next_target
+            indices = next_indices
+            weight = next_weight
+
+        yield input, target, indices, weight
+
+    def __len__(self):
+        return len(self.loader)
+
+    @property
+    def sampler(self):
+        return self.loader.sampler
+
+    @property
+    def dataset(self):
+        return self.loader.dataset
+
+    @property
+    def mixup_enabled(self):
+        if isinstance(self.loader.collate_fn, FastCollateMixup):
+            return self.loader.collate_fn.mixup_enabled
+        else:
+            return False
+
+    @mixup_enabled.setter
+    def mixup_enabled(self, x):
+        if isinstance(self.loader.collate_fn, FastCollateMixup):
+            self.loader.collate_fn.mixup_enabled = x
+
 
 def _worker_init(worker_id, worker_seeding='all'):
     worker_info = torch.utils.data.get_worker_info()
@@ -421,7 +521,7 @@ def create_loader_infobatch(
         loader = loader_class(dataset, **loader_args)
     if use_prefetcher:
         prefetch_re_prob = re_prob if is_training and not no_aug else 0.
-        loader = PrefetchLoader(
+        loader = PrefetchLoaderInfoBatch(
             loader,
             mean=mean,
             std=std,
