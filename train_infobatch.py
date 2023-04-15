@@ -335,7 +335,7 @@ group.add_argument('--pin-mem', action='store_true', default=False,
                    help='Pin CPU memory in DataLoader for more efficient (sometimes) transfer to GPU.')
 group.add_argument('--no-prefetcher', action='store_true', default=False,
                    help='disable fast prefetcher')
-group.add_argument('--output', default='', type=str, metavar='PATH',
+group.add_argument('--output', default='./output/train_infobatch', type=str, metavar='PATH',
                    help='path to output folder (default: none, current dir)')
 group.add_argument('--experiment', default='', type=str, metavar='NAME',
                    help='name of train experiment, name of sub-folder for output')
