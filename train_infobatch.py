@@ -853,6 +853,7 @@ def main():
     if best_metric is not None:
         _logger.info('*** Best metric: {0} (epoch {1})'.format(best_metric, best_epoch))
 
+    print(dataset_train.total_save())
 
 def train_one_epoch_infobatch(
         epoch,
