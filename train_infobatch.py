@@ -611,6 +611,7 @@ def main():
             assert not num_aug_splits  # collate conflict (need to support deinterleaving in collate mixup)
             collate_fn = FastCollateMixupInfoBatch(**mixup_args)
         else:
+            print("original mixup not adapted yet")
             mixup_fn = Mixup(**mixup_args)
 
     # wrap dataset in AugMix helper
@@ -684,13 +685,16 @@ def main():
             train_loss_fn = BinaryCrossEntropy(target_threshold=args.bce_target_thresh,reduction='none')
         else:
 #             train_loss_fn = SoftTargetCrossEntropy()
+            print('mixup is active, using SoftTargetCrossEntropyNoReduction')
             train_loss_fn = SoftTargetCrossEntropyNoReduction()
     elif args.smoothing:
+        print('mixup is not active, using smoothed entropyloss')
         if args.bce_loss:
             train_loss_fn = BinaryCrossEntropy(smoothing=args.smoothing, target_threshold=args.bce_target_thresh,reduction='none')
         else:
             train_loss_fn = LabelSmoothingCrossEntropy(smoothing=args.smoothing,reduction='none')
     else:
+        print('Using basice entropyloss')
         train_loss_fn = nn.CrossEntropyLoss(reduction='none')
     train_loss_fn = train_loss_fn.to(device=device)
     validate_loss_fn = nn.CrossEntropyLoss().to(device=device)
@@ -853,7 +857,7 @@ def main():
     if best_metric is not None:
         _logger.info('*** Best metric: {0} (epoch {1})'.format(best_metric, best_epoch))
 
-    print(dataset_train.total_save())
+    _logger.info(dataset_train.total_save())
 
 def train_one_epoch_infobatch(
         epoch,
