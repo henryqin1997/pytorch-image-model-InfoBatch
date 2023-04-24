@@ -22,7 +22,7 @@ from collections import OrderedDict
 from contextlib import suppress
 from datetime import datetime
 from functools import partial
-from infobatch import *
+from infobatch_ema import *
 
 import torch
 import torch.nn as nn
@@ -579,7 +579,7 @@ def main():
     )
 
     #infobatch
-    dataset_train = InfoBatch(dataset_train,ratio = 0.5, num_epoch = args.epochs, delta=0.85)
+    dataset_train = InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
     ##########
 
     dataset_eval = create_dataset(
