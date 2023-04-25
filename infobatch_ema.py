@@ -246,7 +246,7 @@ class DistributedSamplerWrapper(DistributedSampler):
         indexes_of_indexes = indices
 #         indexes_of_indexes = super().__iter__()  # change this line
         subsampler_indexes = self.dataset
-        return iter(itemgetter(indexes_of_indexes)(subsampler_indexes))
+        return iter(itemgetter(*indexes_of_indexes)(subsampler_indexes))
 #         return iter(itemgetter(*indexes_of_indexes)(subsampler_indexes))
 
 
