@@ -72,7 +72,7 @@ class InfoBatch(Dataset):
         selected = np.random.choice(well_learned_samples, int(self.ratio*len(well_learned_samples)))
         self.reset_weights()
         if len(selected)>0:
-            self.weights[selected]=1/self.ratio
+            self.weights[selected]=1./self.ratio
             pruned_samples.extend(selected)
         print('Cut {} samples for next iteration'.format(len(self.dataset)-len(pruned_samples)))
         self.save_num += len(self.dataset)-len(pruned_samples)

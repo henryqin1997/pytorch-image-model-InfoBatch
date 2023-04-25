@@ -18,7 +18,7 @@ class InfoBatch(Dataset):
         self.ratio = ratio
         self.num_epoch = num_epoch
         self.delta = delta
-        self.scores = np.ones([len(self.dataset)])
+        self.scores = np.full(len(self.dataset),7)
         self.transform = dataset.transform
         self.weights = np.ones(len(self.dataset))
         self.save_num = 0
@@ -50,7 +50,7 @@ class InfoBatch(Dataset):
         selected = np.random.choice(well_learned_samples, int(self.ratio*len(well_learned_samples)))
         self.reset_weights()
         if len(selected)>0:
-            self.weights[selected]=1/self.ratio
+            self.weights[selected]=1./self.ratio
             pruned_samples.extend(selected)
         print('Cut {} samples for next iteration'.format(len(self.dataset)-len(pruned_samples)))
         self.save_num += len(self.dataset)-len(pruned_samples)
