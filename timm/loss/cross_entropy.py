@@ -51,7 +51,7 @@ class SoftTargetCrossEntropyNoReduction(nn.Module):
 
 class SoftTargetCrossEntropyInfoV2(nn.Module):
     def __init__(self):
-        super(SoftTargetCrossEntropyNoReduction, self).__init__()
+        super(SoftTargetCrossEntropyInfoV2, self).__init__()
 
     def forward(self, x: torch.Tensor, target: torch.Tensor, lam: torch.Tensor) -> torch.Tensor:
         with torch.no_grad():
