@@ -686,8 +686,8 @@ def main():
             train_loss_fn = BinaryCrossEntropy(target_threshold=args.bce_target_thresh,reduction='none')
         else:
 #             train_loss_fn = SoftTargetCrossEntropy()
-            print('mixup is active, using SoftTargetCrossEntropyNoReductionV2')
-            train_loss_fn = SoftTargetCrossEntropyNoReductionV2()
+            print('mixup is active, using SoftTargetCrossEntropyInfoV2')
+            train_loss_fn = SoftTargetCrossEntropyInfoV2()
     elif args.smoothing:
         print('mixup is not active, using smoothed entropyloss')
         if args.bce_loss:
