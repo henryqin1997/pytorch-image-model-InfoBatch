@@ -22,7 +22,9 @@ from .distributed_sampler import OrderedDistributedSampler, RepeatAugSampler
 from .random_erasing import RandomErasing
 from .mixup import FastCollateMixup
 from .transforms_factory import create_transform
-from .infobatch import *
+
+import .infobatch as infobatch
+import .infobatch_ema as infobatch_v2
 
 _logger = logging.getLogger(__name__)
 
@@ -607,7 +609,12 @@ def create_loader_infobatch(
                 print('using RepeatAugSampler, not adapted for InfoBatch yet!')
             else:
 #                 sampler = torch.utils.data.distributed.DistributedSampler(dataset)
-                sampler = DistributedSamplerWrapper(dataset.pruning_sampler())
+                if version=='v1':
+                    sampler = infobatch.DistributedSamplerWrapper(dataset.pruning_sampler())
+                elif version=='v2':
+                    sampler = infobatch_v2.DistributedSamplerWrapper(dataset.pruning_sampler())
+                else:
+                    sampler = torch.utils.data.distributed.DistributedSampler(dataset)
         else:
             # This will add extra duplicate entries to result in equal num
             # of samples per-process, will slightly alter validation results
