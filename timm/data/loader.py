@@ -23,8 +23,8 @@ from .random_erasing import RandomErasing
 from .mixup import FastCollateMixup
 from .transforms_factory import create_transform
 
-import .infobatch as infobatch
-import .infobatch_ema as infobatch_v2
+import infobatch as infobatch
+import infobatch_ema as infobatch_v2
 
 _logger = logging.getLogger(__name__)
 
