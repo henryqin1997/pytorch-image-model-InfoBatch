@@ -915,7 +915,6 @@ def train_one_epoch_infobatch(
         #infobatch modification
         if dataset_train is not None:
             scores = loss
-            print(scores)
             if args.distributed:
                 low,high = split_index(indices)
                 low,high = low.cuda(),high.cuda()
