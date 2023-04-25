@@ -346,7 +346,8 @@ class PrefetchLoaderInfoBatchV2:
                 next_target = next_target.to(device=self.device, non_blocking=True)
                 next_indices = next_indices.to(device=self.device, non_blocking=True)
                 next_weight = next_weight.to(device=self.device, non_blocking=True)
-                next_lam = next_lam.to(device=self.device, non_blocking=True)
+                if isinstance(next_lam,torch.Tensor):
+                    next_lam = next_lam.to(device=self.device, non_blocking=True)
                 next_input = next_input.to(self.img_dtype).sub_(self.mean).div_(self.std)
                 if self.random_erasing is not None:
                     next_input = self.random_erasing(next_input)
