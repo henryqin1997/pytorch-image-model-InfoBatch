@@ -20,7 +20,7 @@ class InfoBatch(Dataset):
         self.delta = delta
         self.scores = np.full(len(self.dataset),7)
         self.transform = dataset.transform
-        self.weights = np.ones(len(self.dataset))
+        self.weights = np.full(len(self.dataset),1.)
         self.save_num = 0
         self.momentum = momentum
         self.batch_size = batch_size
