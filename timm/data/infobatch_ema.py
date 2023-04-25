@@ -52,7 +52,7 @@ class InfoBatch(Dataset):
             remaining = []
             l = i * self.batch_size
             r = min((i+1) * (self.batch_size),len(perm))  #left close right open
-            for j in range(l,r)
+            for j in range(l,r):
                 if self.weight[perm[j]] == 2:
                     local_rebalence.append(perm[j])
                 else:
