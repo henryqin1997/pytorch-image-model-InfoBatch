@@ -896,6 +896,7 @@ def train_one_epoch_infobatch(
     num_updates = epoch * num_batches_per_epoch
 
     for batch_idx, (input, target, indices, weight, lam) in enumerate(loader):
+        print(weight)
         last_batch = batch_idx == last_idx
         data_time_m.update(time.time() - end)
         if not args.prefetcher:
