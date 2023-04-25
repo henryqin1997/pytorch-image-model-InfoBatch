@@ -53,8 +53,10 @@ class SoftTargetCrossEntropyInfoV2(nn.Module):
     def __init__(self):
         super(SoftTargetCrossEntropyNoReduction, self).__init__()
 
-    def forward(self, x: torch.Tensor, target: torch.Tensor, ) -> torch.Tensor:
-
-        #TODO scores =
+    def forward(self, x: torch.Tensor, target: torch.Tensor, lam: torch.Tensor) -> torch.Tensor:
+        with torch.no_grad():
+            p = F.softmax(x,dim=-1)
+            scores = torch.max(torch.abs(target-p),dim=-1)
+            scores = (scores + scores.flip(0))/(lam+(1-lam).flip(0))
         loss = torch.sum(-target * F.log_softmax(x, dim=-1), dim=-1)
-        return loss.mean()
+        return loss.mean(), scores

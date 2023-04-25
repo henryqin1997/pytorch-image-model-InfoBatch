@@ -31,7 +31,7 @@ import yaml
 from torch.nn.parallel import DistributedDataParallel as NativeDDP
 
 from timm import utils
-from timm.data import create_dataset, create_loader, create_loader_infobatch, resolve_data_config, Mixup, FastCollateMixup, FastCollateMixupInfoBatch, AugMixDataset
+from timm.data import create_dataset, create_loader, create_loader_infobatch, resolve_data_config, Mixup, FastCollateMixup, FastCollateMixupInfoBatchV2, AugMixDataset
 from timm.layers import convert_splitbn_model, convert_sync_batchnorm, set_fast_norm
 from timm.loss import JsdCrossEntropy, SoftTargetCrossEntropy, SoftTargetCrossEntropyNoReduction, SoftTargetCrossEntropyInfoV2, BinaryCrossEntropy, LabelSmoothingCrossEntropy
 from timm.models import create_model, safe_model_name, resume_checkpoint, load_checkpoint, model_parameters
@@ -609,7 +609,7 @@ def main():
         )
         if args.prefetcher:
             assert not num_aug_splits  # collate conflict (need to support deinterleaving in collate mixup)
-            collate_fn = FastCollateMixupInfoBatch(**mixup_args)
+            collate_fn = FastCollateMixupInfoBatchV2(**mixup_args)
         else:
             print("original mixup not adapted yet")
             mixup_fn = Mixup(**mixup_args)
@@ -651,6 +651,7 @@ def main():
         device=device,
         use_multi_epochs_loader=args.use_multi_epochs_loader,
         worker_seeding=args.worker_seeding,
+        version='v2'
     )
 
     eval_workers = args.workers
@@ -685,8 +686,8 @@ def main():
             train_loss_fn = BinaryCrossEntropy(target_threshold=args.bce_target_thresh,reduction='none')
         else:
 #             train_loss_fn = SoftTargetCrossEntropy()
-            print('mixup is active, using SoftTargetCrossEntropyNoReduction')
-            train_loss_fn = SoftTargetCrossEntropyNoReduction()
+            print('mixup is active, using SoftTargetCrossEntropyNoReductionV2')
+            train_loss_fn = SoftTargetCrossEntropyNoReductionV2()
     elif args.smoothing:
         print('mixup is not active, using smoothed entropyloss')
         if args.bce_loss:
@@ -894,7 +895,7 @@ def train_one_epoch_infobatch(
     last_idx = num_batches_per_epoch - 1
     num_updates = epoch * num_batches_per_epoch
 
-    for batch_idx, (input, target, indices, weight) in enumerate(loader):
+    for batch_idx, (input, target, indices, weight, lam) in enumerate(loader):
         last_batch = batch_idx == last_idx
         data_time_m.update(time.time() - end)
         if not args.prefetcher:
@@ -909,11 +910,10 @@ def train_one_epoch_infobatch(
 
         with amp_autocast():
             output = model(input)
-            loss = loss_fn(output, target)
+            loss, scores = loss_fn(output, target, lam)
 
         #infobatch modification
         if dataset_train is not None:
-            scores = loss
             if args.distributed:
                 low,high = split_index(indices)
                 low,high = low.cuda(),high.cuda()
