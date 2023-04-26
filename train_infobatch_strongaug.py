@@ -896,7 +896,9 @@ def train_one_epoch_infobatch(
     num_updates = epoch * num_batches_per_epoch
 
     for batch_idx, (input, target, indices, weight, lam) in enumerate(loader):
-        if epoch>0: print(weight)
+        if epoch>0:
+            print(indices)
+            print(weight)
         last_batch = batch_idx == last_idx
         data_time_m.update(time.time() - end)
         if not args.prefetcher:
@@ -922,7 +924,7 @@ def train_one_epoch_infobatch(
                 tuple_all = concat_all_gather(tuple, dim=1)
                 low_all, high_all, scores_all = tuple_all[0].type(torch.int), tuple_all[1].type(torch.int), tuple_all[2]
                 indices_all = recombine_index(low_all,high_all)
-                print(scores_all)
+                print("scores:" ,scores_all)
                 dataset_train.__setscore__(indices_all.detach().cpu().numpy(), scores_all.detach().cpu().numpy())
             else:
                 dataset_train.__setscore__(indices.detach().cpu().numpy(), scores.detach().cpu().numpy())
