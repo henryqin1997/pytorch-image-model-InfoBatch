@@ -31,7 +31,7 @@ import yaml
 from torch.nn.parallel import DistributedDataParallel as NativeDDP
 
 from timm import utils
-from timm.data import create_dataset, create_loader, create_loader_infobatch, resolve_data_config, Mixup, FastCollateMixup, FastCollateMixupInfoBatchV2, AugMixDataset
+from timm.data import create_dataset, create_loader, create_loader_infobatch, resolve_data_config, Mixup,MixupInfoBatchV2, FastCollateMixup, FastCollateMixupInfoBatchV2, AugMixDataset
 from timm.layers import convert_splitbn_model, convert_sync_batchnorm, set_fast_norm
 from timm.loss import JsdCrossEntropy, SoftTargetCrossEntropy, SoftTargetCrossEntropyNoReduction, SoftTargetCrossEntropyInfoV2, BinaryCrossEntropy, LabelSmoothingCrossEntropy
 from timm.models import create_model, safe_model_name, resume_checkpoint, load_checkpoint, model_parameters
@@ -612,8 +612,8 @@ def main():
             collate_fn = FastCollateMixupInfoBatchV2(**mixup_args)
         else:
             print("original mixup not adapted yet")
-            mixup_fn = Mixup(**mixup_args)
-
+#             mixup_fn = Mixup(**mixup_args)
+            mixup_fn = MixupInfoBatchV2(**mixup_args)
     # wrap dataset in AugMix helper
     if num_aug_splits > 1:
         dataset_train = AugMixDataset(dataset_train, num_splits=num_aug_splits)
