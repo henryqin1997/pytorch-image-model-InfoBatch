@@ -75,7 +75,7 @@ class InfoBatch(Dataset):
             print('Entered rescaling')
             self.weights[selected]=1./self.ratio
             pruned_samples.extend(selected)
-            print(str(sum(self.weight>1))+'samples are rescaled')
+            print(str(sum(self.weights>1))+'samples are rescaled')
         print('Cut {} samples for next iteration'.format(len(self.dataset)-len(pruned_samples)))
         self.save_num += len(self.dataset)-len(pruned_samples)
         np.random.shuffle(pruned_samples)
