@@ -922,7 +922,6 @@ def train_one_epoch_infobatch(
                 tuple = torch.stack([low,high,scores])
                 tuple_all = concat_all_gather(tuple, dim=1)
                 low_all, high_all, scores_all = tuple_all[0].type(torch.int), tuple_all[1].type(torch.int), tuple_all[2]
-                print('scores:',scores_all)
                 indices_all = recombine_index(low_all,high_all)
                 dataset_train.__setscore__(indices_all.detach().cpu().numpy(), scores_all.detach().cpu().numpy())
             else:
