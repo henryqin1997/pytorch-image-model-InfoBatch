@@ -40,7 +40,7 @@ from timm.scheduler import create_scheduler_v2, scheduler_kwargs
 from timm.utils import ApexScaler, NativeScaler
 
 ###faster testing code
-from torch.util.data import Subset
+from torch.utils.data import Subset
 
 try:
     from apex import amp
