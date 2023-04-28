@@ -122,7 +122,7 @@ class InfoBatchSampler():
                 self.infobatch_dataset.reset_weights()
             self.seq = self.infobatch_dataset.no_prune()
         else:
-            self.seq = self.infobatch_dataset.prune()
+            self.seq = self.infobatch_dataset.prune(self.seed>0)
         self.ite = iter(self.seq)
         self.new_length = len(self.seq)
 
