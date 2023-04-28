@@ -53,7 +53,7 @@ class InfoBatch(Dataset):
             l = i * self.batch_size
             r = min((i+1) * (self.batch_size),len(perm))  #left close right open
             for j in range(l,r):
-                if self.weights[perm[j]] == 2:
+                if self.weights[perm[j]] > 1:
                     local_rebalence.append(perm[j])
                 else:
                     remaining.append(perm[j])
