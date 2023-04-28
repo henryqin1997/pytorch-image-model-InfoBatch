@@ -61,7 +61,7 @@ class InfoBatch(Dataset):
         return perm
 
     def prune(self, leq = False):
-        well_learned_samples = list(range(len(self.dataset))
+        well_learned_samples = list(range(len(self.dataset)))
         selected = np.random.choice(well_learned_samples), int(self.ratio*len(well_learned_samples)),replace=False)
         self.weights[selected]=1./self.ratio
         np.random.shuffle(well_learned_samples)
