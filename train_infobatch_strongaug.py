@@ -39,6 +39,9 @@ from timm.optim import create_optimizer_v2, optimizer_kwargs
 from timm.scheduler import create_scheduler_v2, scheduler_kwargs
 from timm.utils import ApexScaler, NativeScaler
 
+###faster testing code
+from torch.util.data import Subset
+
 try:
     from apex import amp
     from apex.parallel import DistributedDataParallel as ApexDDP
@@ -577,6 +580,10 @@ def main():
         seed=args.seed,
         repeats=args.epoch_repeats,
     )
+
+    ###faster testing code
+    dataset_train = Subset(train_dataset, range(len(train_dataset)//50))
+    ######################
 
     #infobatch
     dataset_train = InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
