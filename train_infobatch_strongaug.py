@@ -611,7 +611,7 @@ def main():
             assert not num_aug_splits  # collate conflict (need to support deinterleaving in collate mixup)
             collate_fn = FastCollateMixupInfoBatchV2(**mixup_args)
         else:
-            print("original mixup not adapted yet")
+            print("Using MixupInfoBatchV2")
 #             mixup_fn = Mixup(**mixup_args)
             mixup_fn = MixupInfoBatchV2(**mixup_args)
     # wrap dataset in AugMix helper
@@ -895,7 +895,7 @@ def train_one_epoch_infobatch(
     last_idx = num_batches_per_epoch - 1
     num_updates = epoch * num_batches_per_epoch
 
-    for batch_idx, (input, target, indices, weight, lam) in enumerate(loader):
+    for batch_idx, (input, target, indices, weight) in enumerate(loader):
         if epoch>1:
             print(sum(weight>1))
         last_batch = batch_idx == last_idx
@@ -906,7 +906,7 @@ def train_one_epoch_infobatch(
             indices, weight = indices.to(device),weight.to(device)
             #########################
             if mixup_fn is not None:
-                input, target = mixup_fn(input, target)
+                input, target, lam = mixup_fn(input, target)
         if args.channels_last:
             input = input.contiguous(memory_format=torch.channels_last)
 
