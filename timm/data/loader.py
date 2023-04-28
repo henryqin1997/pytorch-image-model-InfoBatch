@@ -565,7 +565,8 @@ def create_loader_infobatch(
         device=torch.device('cuda'),
         tf_preprocessing=False,
         use_multi_epochs_loader=False,
-        persistent_workers=True,
+#         persistent_workers=True,
+        persistent_workers=False,
         worker_seeding='all',
         version='v1'
 ):
