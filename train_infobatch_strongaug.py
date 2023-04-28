@@ -582,7 +582,7 @@ def main():
     )
 
     ###faster testing code
-    dataset_train = Subset(train_dataset, range(len(train_dataset)//50))
+    dataset_train = Subset(dataset_train, range(len(train_dataset)//50))
     ######################
 
     #infobatch
