@@ -39,8 +39,6 @@ from timm.optim import create_optimizer_v2, optimizer_kwargs
 from timm.scheduler import create_scheduler_v2, scheduler_kwargs
 from timm.utils import ApexScaler, NativeScaler
 
-###faster testing code
-from torch.utils.data import Subset
 
 try:
     from apex import amp
@@ -580,10 +578,6 @@ def main():
         seed=args.seed,
         repeats=args.epoch_repeats,
     )
-
-    ###faster testing code
-    dataset_train = Subset(dataset_train, range(len(dataset_train)//50))
-    ######################
 
     #infobatch
     dataset_train = InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
