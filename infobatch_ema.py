@@ -13,12 +13,12 @@ from operator import itemgetter
 from typing import Iterator, List, Optional, Union
 
 class InfoBatch(Dataset):
-    def __init__(self, dataset, ratio = 0.5, momentum = 0.75, batch_size = None, num_epoch=None, delta = None):
+    def __init__(self, dataset, ratio = 0.5, momentum = 1, batch_size = None, num_epoch=None, delta = None):
         self.dataset = dataset
         self.ratio = ratio
         self.num_epoch = num_epoch
         self.delta = delta
-        self.scores = np.full(len(self.dataset),7)
+        self.scores = np.full(len(self.dataset),1.)
         self.transform = dataset.transform
         self.weights = np.full(len(self.dataset),1.)
         self.save_num = 0
@@ -60,12 +60,12 @@ class InfoBatch(Dataset):
             perm[l:r] = local_rebalence[:len(local_rebalence)//2] + remaining + local_rebalence[len(local_rebalence)//2:]
         return perm
 
-    def prune(self):
+    def prune(self，leq = False):
         # prune samples that are well learned, rebalence the weight by scaling up remaining
         # well learned samples' learning rate to keep estimation about the same
         # for the next version, also consider new class balance
 
-        b = self.scores<self.scores.mean()
+        b = self.scores<=self.scores.mean() if leq else self.scores<self.scores.mean()
         well_learned_samples = np.where(b)[0]
         pruned_samples = []
         pruned_samples.extend(np.where(np.invert(b))[0])
@@ -122,7 +122,7 @@ class InfoBatchSampler():
                 self.infobatch_dataset.reset_weights()
             self.seq = self.infobatch_dataset.no_prune()
         else:
-            self.seq = self.infobatch_dataset.prune()
+            self.seq = self.infobatch_dataset.prune(self.seed>1)
         self.ite = iter(self.seq)
         self.new_length = len(self.seq)
 
