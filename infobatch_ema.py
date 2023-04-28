@@ -60,7 +60,7 @@ class InfoBatch(Dataset):
             perm[l:r] = local_rebalence[:len(local_rebalence)//2] + remaining + local_rebalence[len(local_rebalence)//2:]
         return perm
 
-    def prune(self，leq = False):
+    def prune(self, leq = False):
         # prune samples that are well learned, rebalence the weight by scaling up remaining
         # well learned samples' learning rate to keep estimation about the same
         # for the next version, also consider new class balance
