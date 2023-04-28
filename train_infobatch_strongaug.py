@@ -580,7 +580,7 @@ def main():
     )
 
     #infobatch
-    dataset_train = InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
+    dataset_train = InfoBatch(dataset_train,ratio = 0.7, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
     ##########
 
     dataset_eval = create_dataset(
@@ -897,8 +897,7 @@ def train_one_epoch_infobatch(
     num_updates = epoch * num_batches_per_epoch
 
     for batch_idx, (input, target, indices, weight, lam) in enumerate(loader):
-        if epoch>0:
-            print(sum(weight>1))
+        print(weight)
         last_batch = batch_idx == last_idx
         data_time_m.update(time.time() - end)
         if not args.prefetcher:
