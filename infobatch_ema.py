@@ -65,7 +65,7 @@ class InfoBatch(Dataset):
         selected = np.random.choice(well_learned_samples, int(self.ratio*len(well_learned_samples)),replace=False)
         self.weights[selected]=1./self.ratio
         np.random.shuffle(well_learned_samples)
-        return well_learned_samples
+        return self.__balance_weight__(well_learned_samples)
 
 #     def prune(self, leq = False):
 #         # prune samples that are well learned, rebalence the weight by scaling up remaining
