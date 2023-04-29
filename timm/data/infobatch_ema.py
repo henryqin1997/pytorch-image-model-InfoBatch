@@ -68,33 +68,33 @@ class InfoBatch(Dataset):
                 perm[l:r] = local_rebalence[:len(local_rebalence)//2] + remaining + local_rebalence[len(local_rebalence)//2:]
         return perm
 
-    def prune(self, leq = False):
-        well_learned_samples = list(range(len(self.dataset)))
-        selected = np.random.choice(well_learned_samples, int(self.ratio*len(well_learned_samples)),replace=False)
-        self.weights[selected]=1./self.ratio
-        np.random.shuffle(well_learned_samples)
-        return self.__balance_weight__(well_learned_samples)
-
-#     def prune(self, leq = False):
-#         # prune samples that are well learned, rebalence the weight by scaling up remaining
-#         # well learned samples' learning rate to keep estimation about the same
-#         # for the next version, also consider new class balance
-#
-#         b = self.scores<=self.scores.mean() if leq else self.scores<self.scores.mean()
-#         well_learned_samples = np.where(b)[0]
-#         pruned_samples = []
-#         pruned_samples.extend(np.where(np.invert(b))[0])
+#     def prune(self, leq = False):  #code for test
+#         well_learned_samples = list(range(len(self.dataset)))
 #         selected = np.random.choice(well_learned_samples, int(self.ratio*len(well_learned_samples)),replace=False)
-#         self.reset_weights()
-#         if len(selected)>0:
-#             print('Entered rescaling')
-#             self.weights[selected]=1./self.ratio
-#             pruned_samples.extend(selected)
-#             print(str(sum(self.weights>1))+'samples are rescaled')
-#         print('Cut {} samples for next iteration'.format(len(self.dataset)-len(pruned_samples)))
-#         self.save_num += len(self.dataset)-len(pruned_samples)
-#         np.random.shuffle(pruned_samples)
-#         return self.__balance_weight__(pruned_samples)
+#         self.weights[selected]=1./self.ratio
+#         np.random.shuffle(well_learned_samples)
+#         return self.__balance_weight__(well_learned_samples)
+
+    def prune(self, leq = False):
+        # prune samples that are well learned, rebalence the weight by scaling up remaining
+        # well learned samples' learning rate to keep estimation about the same
+        # for the next version, also consider new class balance
+
+        b = self.scores<=self.scores.mean() if leq else self.scores<self.scores.mean()
+        well_learned_samples = np.where(b)[0]
+        pruned_samples = []
+        pruned_samples.extend(np.where(np.invert(b))[0])
+        selected = np.random.choice(well_learned_samples, int(self.ratio*len(well_learned_samples)),replace=False)
+        self.reset_weights()
+        if len(selected)>0:
+            print('Entered rescaling')
+            self.weights[selected]=1./self.ratio
+            pruned_samples.extend(selected)
+            print(str(sum(self.weights>1))+'samples are rescaled')
+        print('Cut {} samples for next iteration'.format(len(self.dataset)-len(pruned_samples)))
+        self.save_num += len(self.dataset)-len(pruned_samples)
+        np.random.shuffle(pruned_samples)
+        return self.__balance_weight__(pruned_samples)
 
     def pruning_sampler(self):
         return InfoBatchSampler(self, self.num_epoch, self.delta)
