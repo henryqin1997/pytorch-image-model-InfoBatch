@@ -241,7 +241,7 @@ class DistributedSamplerWrapper(DistributedSampler):
 #             self.num_samples = math.ceil(len(self.dataset) / self.num_replicas)  # type: ignore[arg-type]
 #         self.total_size = self.num_samples * self.num_replicas
 #
-#         indices = list(range(len(self.dataset)))  # type: ignore[arg-type]
+        indices = list(range(len(self.dataset)))  # type: ignore[arg-type]
 #
 #         if not self.drop_last:
 #             # add extra samples to make it evenly divisible
@@ -253,7 +253,7 @@ class DistributedSamplerWrapper(DistributedSampler):
 #         else:
 #             # remove tail of data to make it evenly divisible.
 #             indices = indices[:self.total_size]
-#         assert len(indices) == self.total_size
+        assert len(indices) == self.total_size
 
         indices = indices[self.rank*self.num_samples:(self.rank+1)*self.num_samples]
         assert len(indices) == self.num_samples
