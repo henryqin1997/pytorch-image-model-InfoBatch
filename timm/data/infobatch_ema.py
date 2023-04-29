@@ -52,7 +52,6 @@ class InfoBatch(Dataset):
         else: num_replicas = 1
 
         num_samples = math.ceil(len(perm) / num_replicas)
-        print(num_samples, "num_samples calculated in pruning")
 
         for cid in range(num_replicas):
             rlimit = (cid+1)*num_samples
@@ -240,8 +239,6 @@ class DistributedSamplerWrapper(DistributedSampler):
             )
         else:
             self.num_samples = math.ceil(len(self.dataset) / self.num_replicas)  # type: ignore[arg-type]
-
-        print(self.num_samples, "num_samples calculated in distributed")
 
         self.total_size = self.num_samples * self.num_replicas
 
