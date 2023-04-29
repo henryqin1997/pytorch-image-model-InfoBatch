@@ -230,29 +230,29 @@ class DistributedSamplerWrapper(DistributedSampler):
         """
 #         self.sampler.reset()
         self.dataset = DatasetFromSampler(self.sampler)
-#         if self.drop_last and len(self.dataset) % self.num_replicas != 0:  # type: ignore[arg-type]
-#             # Split to nearest available length that is evenly divisible.
-#             # This is to ensure each rank receives the same amount of data when
-#             # using this Sampler.
-#             self.num_samples = math.ceil(
-#                 (len(self.dataset) - self.num_replicas) / self.num_replicas  # type: ignore[arg-type]
-#             )
-#         else:
-#             self.num_samples = math.ceil(len(self.dataset) / self.num_replicas)  # type: ignore[arg-type]
-#         self.total_size = self.num_samples * self.num_replicas
-#
+        if self.drop_last and len(self.dataset) % self.num_replicas != 0:  # type: ignore[arg-type]
+            # Split to nearest available length that is evenly divisible.
+            # This is to ensure each rank receives the same amount of data when
+            # using this Sampler.
+            self.num_samples = math.ceil(
+                (len(self.dataset) - self.num_replicas) / self.num_replicas  # type: ignore[arg-type]
+            )
+        else:
+            self.num_samples = math.ceil(len(self.dataset) / self.num_replicas)  # type: ignore[arg-type]
+        self.total_size = self.num_samples * self.num_replicas
+
         indices = list(range(len(self.dataset)))  # type: ignore[arg-type]
-#
-#         if not self.drop_last:
-#             # add extra samples to make it evenly divisible
-#             padding_size = self.total_size - len(indices)
-#             if padding_size <= len(indices):
-#                 indices += indices[:padding_size]
-#             else:
-#                 indices += (indices * math.ceil(padding_size / len(indices)))[:padding_size]
-#         else:
-#             # remove tail of data to make it evenly divisible.
-#             indices = indices[:self.total_size]
+
+        if not self.drop_last:
+            # add extra samples to make it evenly divisible
+            padding_size = self.total_size - len(indices)
+            if padding_size <= len(indices):
+                indices += indices[:padding_size]
+            else:
+                indices += (indices * math.ceil(padding_size / len(indices)))[:padding_size]
+        else:
+            # remove tail of data to make it evenly divisible.
+            indices = indices[:self.total_size]
         assert len(indices) == self.total_size
 
         indices = indices[self.rank*self.num_samples:(self.rank+1)*self.num_samples]
