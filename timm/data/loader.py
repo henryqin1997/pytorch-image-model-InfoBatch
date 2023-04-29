@@ -614,7 +614,7 @@ def create_loader_infobatch(
                 if version=='v1':
                     sampler = infobatch.DistributedSamplerWrapper(dataset.pruning_sampler())
                 elif version=='v2':
-                    sampler = infobatch_v2.DistributedSamplerWrapper(dataset.pruning_sampler())
+                    sampler = infobatch_v2.DistributedSamplerWrapper(dataset.pruning_sampler(), batch_size)
                 else:
                     sampler = torch.utils.data.distributed.DistributedSampler(dataset)
         else:

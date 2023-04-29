@@ -47,20 +47,27 @@ class InfoBatch(Dataset):
             print('Batchsize not specified! Cannot balance weight for cutmix and mixup')
             return perm
 
-        for i in range(math.ceil(len(perm)/self.batch_size)):
-            local_rebalence = []
-            remaining = []
-            l = i * self.batch_size
-            r = min((i+1) * (self.batch_size),len(perm))  #left close right open
-            for j in range(l,r):
-                if self.weights[perm[j]] > 1:
-                    local_rebalence.append(perm[j])
-                else:
-                    remaining.append(perm[j])
-            perm[l:r] = local_rebalence[:len(local_rebalence)//2] + remaining + local_rebalence[len(local_rebalence)//2:]
-        return perm
+        if torch.distributed.is_available():
+            num_replicas = torch.distributed.get_world_size()
+        else: num_replicas = 1
 
-def prune(self, leq = False):
+        num_samples = math.ceil(len(perm) / num_replicas)
+
+        for cid in range(num_replicas):
+            rlimit = (cid+1)*num_samples
+            for l in range(cid*num_samples,rlimit,batch_size):
+                local_rebalence = []
+                remaining = []
+                r = min(l+batch_size,rlimit)  #left close right open
+                for j in range(l,r):
+                    if self.weights[perm[j]] > 1:
+                        local_rebalence.append(perm[j])
+                    else:
+                        remaining.append(perm[j])
+                perm[l:r] = local_rebalence[:len(local_rebalence)//2] + remaining + local_rebalence[len(local_rebalence)//2:]
+            return perm
+
+    def prune(self, leq = False):
         well_learned_samples = list(range(len(self.dataset)))
         selected = np.random.choice(well_learned_samples, int(self.ratio*len(well_learned_samples)),replace=False)
         self.weights[selected]=1./self.ratio
@@ -196,6 +203,7 @@ class DistributedSamplerWrapper(DistributedSampler):
         num_replicas: Optional[int] = None,
         rank: Optional[int] = None,
         shuffle: bool = True,
+        batch_size: Optional[int] = None
     ):
         """
         Args:
@@ -222,32 +230,30 @@ class DistributedSamplerWrapper(DistributedSampler):
         """
 #         self.sampler.reset()
         self.dataset = DatasetFromSampler(self.sampler)
-        if self.drop_last and len(self.dataset) % self.num_replicas != 0:  # type: ignore[arg-type]
-            # Split to nearest available length that is evenly divisible.
-            # This is to ensure each rank receives the same amount of data when
-            # using this Sampler.
-            self.num_samples = math.ceil(
-                (len(self.dataset) - self.num_replicas) / self.num_replicas  # type: ignore[arg-type]
-            )
-        else:
-            self.num_samples = math.ceil(len(self.dataset) / self.num_replicas)  # type: ignore[arg-type]
-        self.total_size = self.num_samples * self.num_replicas
-
-        indices = list(range(len(self.dataset)))  # type: ignore[arg-type]
-
-        if not self.drop_last:
-            # add extra samples to make it evenly divisible
-            padding_size = self.total_size - len(indices)
-            if padding_size <= len(indices):
-                indices += indices[:padding_size]
-            else:
-                indices += (indices * math.ceil(padding_size / len(indices)))[:padding_size]
-        else:
-            # remove tail of data to make it evenly divisible.
-            indices = indices[:self.total_size]
-        assert len(indices) == self.total_size
-
-        # subsample
+#         if self.drop_last and len(self.dataset) % self.num_replicas != 0:  # type: ignore[arg-type]
+#             # Split to nearest available length that is evenly divisible.
+#             # This is to ensure each rank receives the same amount of data when
+#             # using this Sampler.
+#             self.num_samples = math.ceil(
+#                 (len(self.dataset) - self.num_replicas) / self.num_replicas  # type: ignore[arg-type]
+#             )
+#         else:
+#             self.num_samples = math.ceil(len(self.dataset) / self.num_replicas)  # type: ignore[arg-type]
+#         self.total_size = self.num_samples * self.num_replicas
+#
+#         indices = list(range(len(self.dataset)))  # type: ignore[arg-type]
+#
+#         if not self.drop_last:
+#             # add extra samples to make it evenly divisible
+#             padding_size = self.total_size - len(indices)
+#             if padding_size <= len(indices):
+#                 indices += indices[:padding_size]
+#             else:
+#                 indices += (indices * math.ceil(padding_size / len(indices)))[:padding_size]
+#         else:
+#             # remove tail of data to make it evenly divisible.
+#             indices = indices[:self.total_size]
+#         assert len(indices) == self.total_size
 
         indices = indices[self.rank*self.num_samples:(self.rank+1)*self.num_samples]
         assert len(indices) == self.num_samples
