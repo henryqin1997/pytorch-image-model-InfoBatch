@@ -41,7 +41,7 @@ class InfoBatch(Dataset):
         return data, target, index, weight
 
     def __balance_weight__(self, perm):
-        # Put elements with secale weight 2 to start and end of batch balanced, so that cutmix with batch operation don't
+        # Put elements with recaled weight to start and end of batch balanced, so that cutmix with batch operation don't
         # need to deal with weight.
         if self.batch_size is None or self.batch_size<=0:
             print('Batchsize not specified! Cannot balance weight for cutmix and mixup')
@@ -52,6 +52,7 @@ class InfoBatch(Dataset):
         else: num_replicas = 1
 
         num_samples = math.ceil(len(perm) / num_replicas)
+        print(num_samples, "num_samples calculated in pruning")
 
         for cid in range(num_replicas):
             rlimit = (cid+1)*num_samples
@@ -239,6 +240,9 @@ class DistributedSamplerWrapper(DistributedSampler):
             )
         else:
             self.num_samples = math.ceil(len(self.dataset) / self.num_replicas)  # type: ignore[arg-type]
+
+        print(self.num_samples, "num_samples calculated in distributed")
+
         self.total_size = self.num_samples * self.num_replicas
 
         indices = list(range(len(self.dataset)))  # type: ignore[arg-type]
