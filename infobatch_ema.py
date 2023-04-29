@@ -55,10 +55,10 @@ class InfoBatch(Dataset):
 
         for cid in range(num_replicas):
             rlimit = (cid+1)*num_samples
-            for l in range(cid*num_samples,rlimit,batch_size):
+            for l in range(cid*num_samples,rlimit,self.batch_size):
                 local_rebalence = []
                 remaining = []
-                r = min(l+batch_size,rlimit)  #left close right open
+                r = min(l+self.batch_size,rlimit)  #left close right open
                 for j in range(l,r):
                     if self.weights[perm[j]] > 1:
                         local_rebalence.append(perm[j])
