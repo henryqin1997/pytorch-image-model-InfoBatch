@@ -66,7 +66,7 @@ class InfoBatch(Dataset):
                     else:
                         remaining.append(perm[j])
                 perm[l:r] = local_rebalence[:len(local_rebalence)//2] + remaining + local_rebalence[len(local_rebalence)//2:]
-            return perm
+        return perm
 
     def prune(self, leq = False):
         well_learned_samples = list(range(len(self.dataset)))
