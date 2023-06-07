@@ -653,7 +653,7 @@ def create_loader_infobatch(
         loader = loader_class(dataset, **loader_args)
     if use_prefetcher:
         prefetch_re_prob = re_prob if is_training and not no_aug else 0.
-        prefetchloaderdict = {'v1':PrefetchLoaderInfoBatch,'v2':PrefetchLoaderInfoBatchV2, 'v3':}
+        prefetchloaderdict = {'v1':PrefetchLoaderInfoBatch,'v2':PrefetchLoaderInfoBatchV2, 'v3':PrefetchLoaderInfoBatchV2}
         loader = prefetchloaderdict[version](
             loader,
             mean=mean,
