@@ -22,7 +22,7 @@ from collections import OrderedDict
 from contextlib import suppress
 from datetime import datetime
 from functools import partial
-from infobatch_ema import *
+from infobatch_qua import *
 
 import torch
 import torch.nn as nn
@@ -350,6 +350,10 @@ group.add_argument('--use-multi-epochs-loader', action='store_true', default=Fal
 group.add_argument('--log-wandb', action='store_true', default=False,
                    help='log training and validation metrics to wandb')
 
+group = parser.add_argument_group('InfoBatch parameters')
+group.add_argument('--infobatch-version', type=str, default='v1')
+group.add_argument('--infobatch-mix-weight', action='store_true', default=False)
+
 
 def _parse_args():
     # Do we have a config file to parse?
@@ -652,7 +656,8 @@ def main():
         device=device,
         use_multi_epochs_loader=args.use_multi_epochs_loader,
         worker_seeding=args.worker_seeding,
-        version='v2'
+        version=args.infobatch_version,
+        max_weight=args.infobatch_mix_weight
     )
 
     eval_workers = args.workers

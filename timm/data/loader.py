@@ -25,6 +25,7 @@ from .transforms_factory import create_transform
 
 import infobatch as infobatch
 import infobatch_ema as infobatch_v2
+import infobatch_qua as infobatch_v3
 
 _logger = logging.getLogger(__name__)
 
@@ -568,7 +569,8 @@ def create_loader_infobatch(
 #         persistent_workers=True,
         persistent_workers=False,
         worker_seeding='all',
-        version='v1'
+        version='v1',
+        max_weight=args.infobatch_mix_weight
 ):
     re_num_splits = 0
     if re_split:
@@ -615,6 +617,8 @@ def create_loader_infobatch(
                     sampler = infobatch.DistributedSamplerWrapper(dataset.pruning_sampler())
                 elif version=='v2':
                     sampler = infobatch_v2.DistributedSamplerWrapper(dataset.pruning_sampler())
+                elif version=='v3':
+                    sampler = infobatch_v3.DistributedSamplerWrapper(dataset.pruning_sampler())
                 else:
                     sampler = torch.utils.data.distributed.DistributedSampler(dataset)
         else:
@@ -649,7 +653,7 @@ def create_loader_infobatch(
         loader = loader_class(dataset, **loader_args)
     if use_prefetcher:
         prefetch_re_prob = re_prob if is_training and not no_aug else 0.
-        prefetchloaderdict = {'v1':PrefetchLoaderInfoBatch,'v2':PrefetchLoaderInfoBatchV2}
+        prefetchloaderdict = {'v1':PrefetchLoaderInfoBatch,'v2':PrefetchLoaderInfoBatchV2, 'v3':}
         loader = prefetchloaderdict[version](
             loader,
             mean=mean,

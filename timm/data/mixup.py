@@ -625,7 +625,7 @@ class FastCollateMixupInfoBatchV2(Mixup):
             output[i] += torch.from_numpy(mixed.astype(np.uint8))
         return lam
 
-    def __call__(self, batch, _=None):
+    def __call__(self, batch, _=None, max_weight = False):
         batch_size = len(batch)
         assert batch_size % 2 == 0, 'Batch size should be even when using this'
         half = 'half' in self.mode
@@ -645,6 +645,8 @@ class FastCollateMixupInfoBatchV2(Mixup):
         #InfoBatch Modification. If further score spliting is needed, modify here
         indices = torch.tensor([b[2] for b in batch], dtype=torch.int64)
         weights = torch.tensor([b[3] for b in batch], dtype=torch.float32)
+        if max_weight:
+            weights = torch.max(weights,weights.flip(0))
         #######################
 
         return output, target, indices, weights, lam
