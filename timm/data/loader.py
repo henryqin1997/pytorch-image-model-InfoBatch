@@ -643,7 +643,7 @@ def create_loader_infobatch(
         collate_fn=collate_fn,
         pin_memory=pin_memory,
         drop_last=is_training,
-        worker_init_fn=partial(_worker_init, worker_seeding=worker_seeding)
+        worker_init_fn=partial(_worker_init, worker_seeding=worker_seeding),
         persistent_workers=persistent_workers
     )
     try:
