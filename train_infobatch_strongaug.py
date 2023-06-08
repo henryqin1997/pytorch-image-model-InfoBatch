@@ -22,7 +22,7 @@ from collections import OrderedDict
 from contextlib import suppress
 from datetime import datetime
 from functools import partial
-from infobatch_qua import *
+from infobatch_ema import *
 
 import torch
 import torch.nn as nn
@@ -351,7 +351,7 @@ group.add_argument('--log-wandb', action='store_true', default=False,
                    help='log training and validation metrics to wandb')
 
 group = parser.add_argument_group('InfoBatch parameters')
-group.add_argument('--infobatch-version', type=str, default='v1')
+group.add_argument('--infobatch-version', type=str, default='v2')
 group.add_argument('--infobatch-mix-weight', action='store_true', default=False)
 
 
