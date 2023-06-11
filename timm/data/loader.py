@@ -26,6 +26,7 @@ from .transforms_factory import create_transform
 import infobatch as infobatch
 import infobatch_ema as infobatch_v2
 import infobatch_qua as infobatch_v3
+import infobatch_abl
 
 _logger = logging.getLogger(__name__)
 
@@ -619,6 +620,8 @@ def create_loader_infobatch(
                     sampler = infobatch_v2.DistributedSamplerWrapper(dataset.pruning_sampler())
                 elif version=='v3':
                     sampler = infobatch_v3.DistributedSamplerWrapper(dataset.pruning_sampler())
+                elif version=='abl':
+                    sampler = infobatch_abl.DistributedSamplerWrapper(dataset.pruning_sampler())
                 else:
                     sampler = torch.utils.data.distributed.DistributedSampler(dataset)
         else:
