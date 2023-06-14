@@ -65,6 +65,41 @@ def fast_collate(batch):
     else:
         assert False
 
+def fast_collate_infobatch(batch):
+    """ A fast collation function optimized for uint8 images (np array or torch) and int64 targets (labels)"""
+    assert isinstance(batch[0], tuple)
+    batch_size = len(batch)
+    indices = torch.tensor([b[2] for b in batch], dtype=torch.int64)
+    weights = torch.tensor([b[3] for b in batch], dtype=torch.float32)
+    if isinstance(batch[0][0], tuple):
+        # This branch 'deinterleaves' and flattens tuples of input tensors into one tensor ordered by position
+        # such that all tuple of position n will end up in a torch.split(tensor, batch_size) in nth position
+        inner_tuple_size = len(batch[0][0])
+        flattened_batch_size = batch_size * inner_tuple_size
+        targets = torch.zeros(flattened_batch_size, dtype=torch.int64)
+        tensor = torch.zeros((flattened_batch_size, *batch[0][0][0].shape), dtype=torch.uint8)
+        for i in range(batch_size):
+            assert len(batch[i][0]) == inner_tuple_size  # all input tensor tuples must be same length
+            for j in range(inner_tuple_size):
+                targets[i + j * batch_size] = batch[i][1]
+                tensor[i + j * batch_size] += torch.from_numpy(batch[i][0][j])
+        return tensor, targets, indices, weights
+    elif isinstance(batch[0][0], np.ndarray):
+        targets = torch.tensor([b[1] for b in batch], dtype=torch.int64)
+        assert len(targets) == batch_size
+        tensor = torch.zeros((batch_size, *batch[0][0].shape), dtype=torch.uint8)
+        for i in range(batch_size):
+            tensor[i] += torch.from_numpy(batch[i][0])
+        return tensor, targets, indices, weights
+    elif isinstance(batch[0][0], torch.Tensor):
+        targets = torch.tensor([b[1] for b in batch], dtype=torch.int64)
+        assert len(targets) == batch_size
+        tensor = torch.zeros((batch_size, *batch[0][0].shape), dtype=torch.uint8)
+        for i in range(batch_size):
+            tensor[i].copy_(batch[i][0])
+        return tensor, targets, indices, weights
+    else:
+        assert False
 
 def adapt_to_chs(x, n):
     if not isinstance(x, (tuple, list)):
@@ -494,7 +529,7 @@ def create_loader(
         assert num_aug_repeats == 0, "RepeatAugment not currently supported in non-distributed or IterableDataset use"
 
     if collate_fn is None:
-        collate_fn = fast_collate if use_prefetcher else torch.utils.data.dataloader.default_collate
+        collate_fn = fast_collate_infobatch if use_prefetcher else torch.utils.data.dataloader.default_collate
 
     loader_class = torch.utils.data.DataLoader
     if use_multi_epochs_loader:
