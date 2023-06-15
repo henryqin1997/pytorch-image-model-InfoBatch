@@ -529,10 +529,7 @@ def create_loader(
         assert num_aug_repeats == 0, "RepeatAugment not currently supported in non-distributed or IterableDataset use"
 
     if collate_fn is None:
-        print('collate_fn is None')
-        if use_prefetcher:
-            print('using fast_collate_infobatch')
-        collate_fn = fast_collate_infobatch if use_prefetcher else torch.utils.data.dataloader.default_collate
+        collate_fn = fast_collate if use_prefetcher else torch.utils.data.dataloader.default_collate
 
     loader_class = torch.utils.data.DataLoader
     if use_multi_epochs_loader:
@@ -670,7 +667,7 @@ def create_loader_infobatch(
         assert num_aug_repeats == 0, "RepeatAugment not currently supported in non-distributed or IterableDataset use"
 
     if collate_fn is None:
-        collate_fn = fast_collate if use_prefetcher else torch.utils.data.dataloader.default_collate
+        collate_fn = fast_collate_infobatch if use_prefetcher else torch.utils.data.dataloader.default_collate
 
     loader_class = torch.utils.data.DataLoader
     if use_multi_epochs_loader:
