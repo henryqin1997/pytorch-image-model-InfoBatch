@@ -72,3 +72,32 @@ class SoftTargetCrossEntropyInfoV2(nn.Module):
 
         loss = torch.sum(-target * F.log_softmax(x, dim=-1), dim=-1)
         return loss, scores
+
+
+class SoftTargetCrossEntropyInfoV3(nn.Module):
+    def __init__(self):
+        super(SoftTargetCrossEntropyInfoV2, self).__init__()
+
+    def forward(self, x: torch.Tensor, target: torch.Tensor, lam: Union[float,torch.Tensor], res_weights: torch.Tensor) -> torch.Tensor:
+        with torch.no_grad():
+            rescaled_samples = torch.where(res_weights>1)[0]
+            unrescaled_samples = torch.where(res_weights<=1)[0]
+            batch_permuted = torch.zeros(x.shape[0], dtype=torch.int64, x.device)
+            batch_permuted[rescaled_samples] = rescaled_samples.flip(0)
+            batch_permuted[unrescaled_samples] = unrescaled_samples.flip(0)
+            if isinstance(lam,torch.Tensor):
+                p = F.softmax(x,dim=-1)
+                scores = torch.max(torch.abs(target-p),dim=-1)[0]
+                scores = (scores + scores[batch_permuted])/(lam+(1-lam)[batch_permuted]))
+            else:
+                if lam>0.5:
+                    original_targets = torch.max(target,dim=-1)[1]
+                else:
+                    original_targets = torch.max(target,dim=-1)[1][[batch_permuted]]
+                p = F.softmax(x,dim=-1)
+                selfscores = torch.abs(target[range(len(target)),original_targets]-p[range(len(target)),original_targets])
+                mixscores = torch.abs(target[range(len(target)),original_targets[[batch_permuted]]]-p[range(len(target)),original_targets[[batch_permuted]]])
+                scores = selfscores + mixscores[[batch_permuted]]
+
+        loss = torch.sum(-target * F.log_softmax(x, dim=-1), dim=-1)
+        return loss, scores

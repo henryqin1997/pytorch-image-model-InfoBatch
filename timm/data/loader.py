@@ -654,7 +654,8 @@ def create_loader_infobatch(
                 elif version=='v2':
                     sampler = infobatch_v2.DistributedSamplerWrapper(dataset.pruning_sampler())
                 elif version=='v3':
-                    sampler = infobatch_v3.DistributedSamplerWrapper(dataset.pruning_sampler())
+                    # here is actually a small improvement of v2, instead of aligning, use permutation instead
+                    sampler = infobatch_v2.DistributedSamplerWrapper(dataset.pruning_sampler())
                 elif version=='abl':
                     sampler = infobatch_abl.DistributedSamplerWrapper(dataset.pruning_sampler())
                 else:

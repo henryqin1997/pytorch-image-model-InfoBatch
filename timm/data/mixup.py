@@ -348,6 +348,146 @@ class MixupInfoBatchV2:
         return x, target, lam
 
 
+class MixupInfoBatchV3:
+    """ Mixup/Cutmix that applies different params to each element or whole batch
+
+    Args:
+        mixup_alpha (float): mixup alpha value, mixup is active if > 0.
+        cutmix_alpha (float): cutmix alpha value, cutmix is active if > 0.
+        cutmix_minmax (List[float]): cutmix min/max image ratio, cutmix is active and uses this vs alpha if not None.
+        prob (float): probability of applying mixup or cutmix per batch or element
+        switch_prob (float): probability of switching to cutmix instead of mixup when both are active
+        mode (str): how to apply mixup/cutmix params (per 'batch', 'pair' (pair of elements), 'elem' (element)
+        correct_lam (bool): apply lambda correction when cutmix bbox clipped by image borders
+        label_smoothing (float): apply label smoothing to the mixed target tensor
+        num_classes (int): number of classes for target
+    """
+    def __init__(self, mixup_alpha=1., cutmix_alpha=0., cutmix_minmax=None, prob=1.0, switch_prob=0.5,
+                 mode='batch', correct_lam=True, label_smoothing=0.1, num_classes=1000):
+        self.mixup_alpha = mixup_alpha
+        self.cutmix_alpha = cutmix_alpha
+        self.cutmix_minmax = cutmix_minmax
+        if self.cutmix_minmax is not None:
+            assert len(self.cutmix_minmax) == 2
+            # force cutmix alpha == 1.0 when minmax active to keep logic simple & safe
+            self.cutmix_alpha = 1.0
+        self.mix_prob = prob
+        self.switch_prob = switch_prob
+        self.label_smoothing = label_smoothing
+        self.num_classes = num_classes
+        self.mode = mode
+        self.correct_lam = correct_lam  # correct lambda based on clipped area for cutmix
+        self.mixup_enabled = True  # set to false to disable mixing (intended tp be set by train loop)
+
+    def _params_per_elem(self, batch_size):
+        lam = np.ones(batch_size, dtype=np.float32)
+        use_cutmix = np.zeros(batch_size, dtype=np.bool)
+        if self.mixup_enabled:
+            if self.mixup_alpha > 0. and self.cutmix_alpha > 0.:
+                use_cutmix = np.random.rand(batch_size) < self.switch_prob
+                lam_mix = np.where(
+                    use_cutmix,
+                    np.random.beta(self.cutmix_alpha, self.cutmix_alpha, size=batch_size),
+                    np.random.beta(self.mixup_alpha, self.mixup_alpha, size=batch_size))
+            elif self.mixup_alpha > 0.:
+                lam_mix = np.random.beta(self.mixup_alpha, self.mixup_alpha, size=batch_size)
+            elif self.cutmix_alpha > 0.:
+                use_cutmix = np.ones(batch_size, dtype=np.bool)
+                lam_mix = np.random.beta(self.cutmix_alpha, self.cutmix_alpha, size=batch_size)
+            else:
+                assert False, "One of mixup_alpha > 0., cutmix_alpha > 0., cutmix_minmax not None should be true."
+            lam = np.where(np.random.rand(batch_size) < self.mix_prob, lam_mix.astype(np.float32), lam)
+        return lam, use_cutmix
+
+    def _params_per_batch(self):
+        lam = 1.
+        use_cutmix = False
+        if self.mixup_enabled and np.random.rand() < self.mix_prob:
+            if self.mixup_alpha > 0. and self.cutmix_alpha > 0.:
+                use_cutmix = np.random.rand() < self.switch_prob
+                lam_mix = np.random.beta(self.cutmix_alpha, self.cutmix_alpha) if use_cutmix else \
+                    np.random.beta(self.mixup_alpha, self.mixup_alpha)
+            elif self.mixup_alpha > 0.:
+                lam_mix = np.random.beta(self.mixup_alpha, self.mixup_alpha)
+            elif self.cutmix_alpha > 0.:
+                use_cutmix = True
+                lam_mix = np.random.beta(self.cutmix_alpha, self.cutmix_alpha)
+            else:
+                assert False, "One of mixup_alpha > 0., cutmix_alpha > 0., cutmix_minmax not None should be true."
+            lam = float(lam_mix)
+        return lam, use_cutmix
+
+    def _mix_elem(self, x, batch_permutation=None):
+        batch_size = len(x)
+        lam_batch, use_cutmix = self._params_per_elem(batch_size)
+        x_orig = x.clone()  # need to keep an unmodified original for mixing source
+        for i in range(batch_size):
+            j = batch_size - i - 1 if batch_permutation is None else batch_permutation[i]
+            lam = lam_batch[i]
+            if lam != 1.:
+                if use_cutmix[i]:
+                    (yl, yh, xl, xh), lam = cutmix_bbox_and_lam(
+                        x[i].shape, lam, ratio_minmax=self.cutmix_minmax, correct_lam=self.correct_lam)
+                    x[i][:, yl:yh, xl:xh] = x_orig[j][:, yl:yh, xl:xh]
+                    lam_batch[i] = lam
+                else:
+                    x[i] = x[i] * lam + x_orig[j] * (1 - lam)
+        return torch.tensor(lam_batch, device=x.device, dtype=x.dtype).unsqueeze(1)
+
+    def _mix_pair(self, x, batch_permutation=None):
+        batch_size = len(x)
+        lam_batch, use_cutmix = self._params_per_elem(batch_size // 2)
+        x_orig = x.clone()  # need to keep an unmodified original for mixing source
+        for i in range(batch_size // 2):
+            j = batch_size - i - 1 if batch_permutation is None else batch_permutation[i]
+            lam = lam_batch[i]
+            if lam != 1.:
+                if use_cutmix[i]:
+                    (yl, yh, xl, xh), lam = cutmix_bbox_and_lam(
+                        x[i].shape, lam, ratio_minmax=self.cutmix_minmax, correct_lam=self.correct_lam)
+                    x[i][:, yl:yh, xl:xh] = x_orig[j][:, yl:yh, xl:xh]
+                    x[j][:, yl:yh, xl:xh] = x_orig[i][:, yl:yh, xl:xh]
+                    lam_batch[i] = lam
+                else:
+                    x[i] = x[i] * lam + x_orig[j] * (1 - lam)
+                    x[j] = x[j] * lam + x_orig[i] * (1 - lam)
+        lam_batch = np.concatenate((lam_batch, lam_batch[::-1]))
+        return torch.tensor(lam_batch, device=x.device, dtype=x.dtype).unsqueeze(1)
+
+    def _mix_batch(self, x, batch_permutation=None):
+        lam, use_cutmix = self._params_per_batch()
+        if lam == 1.:
+            return 1.
+        if use_cutmix:
+            (yl, yh, xl, xh), lam = cutmix_bbox_and_lam(
+                x.shape, lam, ratio_minmax=self.cutmix_minmax, correct_lam=self.correct_lam)
+            if batch_permutation is None:
+                x[:, :, yl:yh, xl:xh] = x.flip(0)[:, :, yl:yh, xl:xh]
+            else:
+                x[:, :, yl:yh, xl:xh] = x[batch_permutation][:, :, yl:yh, xl:xh]
+        else:
+            x_flipped = x.flip(0).mul_(1. - lam) if batch_permutation is None else x[batch_permutation].mul_(1. - lam)
+            x.mul_(lam).add_(x_flipped)
+        return lam
+
+    def __call__(self, x, target, res_weights=None):
+        assert len(x) % 2 == 0, 'Batch size should be even when using this'
+        if res_weights is not None:
+            rescaled_samples = torch.where(res_weights>1)[0]
+            unrescaled_samples = torch.where(res_weights<=1)[0]
+            batch_permuted = torch.zeros(x.shape[0], dtype=torch.int64, x.device)
+            batch_permuted[rescaled_samples] = rescaled_samples.flip(0)
+            batch_permuted[unrescaled_samples] = unrescaled_samples.flip(0)
+        if self.mode == 'elem':
+            lam = self._mix_elem(x, batch_permuted)
+        elif self.mode == 'pair':
+            lam = self._mix_pair(x, batch_permuted)
+        else:
+            lam = self._mix_batch(x, batch_permuted)
+        target = mixup_target(target, self.num_classes, lam, self.label_smoothing, x.device)
+        return x, target, lam
+
+
 class FastCollateMixup(Mixup):
     """ Fast Collate w/ Mixup/Cutmix that applies different params to each element or whole batch
 
@@ -650,3 +790,112 @@ class FastCollateMixupInfoBatchV2(Mixup):
         #######################
 
         return output, target, indices, weights, lam
+
+class FastCollateMixupInfoBatchV3(Mixup):
+    """ Fast Collate w/ Mixup/Cutmix that applies different params to each element or whole batch
+
+    A Mixup impl that's performed while collating the batches.
+
+    InfoBatch change: same weight samples are flipped to cutmix with each other
+    """
+
+    def _mix_elem_collate(self, output, batch, half=False, batch_permutation=None):
+        batch_size = len(batch)
+        num_elem = batch_size // 2 if half else batch_size
+        assert len(output) == num_elem
+        lam_batch, use_cutmix = self._params_per_elem(num_elem)
+        for i in range(num_elem):
+            j = batch_size - i - 1 if batch_permutation is None else batch_permutation[i]
+            lam = lam_batch[i]
+            mixed = batch[i][0]
+            if lam != 1.:
+                if use_cutmix[i]:
+                    if not half:
+                        mixed = mixed.copy()
+                    (yl, yh, xl, xh), lam = cutmix_bbox_and_lam(
+                        output.shape, lam, ratio_minmax=self.cutmix_minmax, correct_lam=self.correct_lam)
+                    mixed[:, yl:yh, xl:xh] = batch[j][0][:, yl:yh, xl:xh]
+                    lam_batch[i] = lam
+                else:
+                    mixed = mixed.astype(np.float32) * lam + batch[j][0].astype(np.float32) * (1 - lam)
+                    np.rint(mixed, out=mixed)
+            output[i] += torch.from_numpy(mixed.astype(np.uint8))
+        if half:
+            lam_batch = np.concatenate((lam_batch, np.ones(num_elem)))
+        return torch.tensor(lam_batch).unsqueeze(1)
+
+    def _mix_pair_collate(self, output, batch, batch_permutation=None):
+        batch_size = len(batch)
+        lam_batch, use_cutmix = self._params_per_elem(batch_size // 2)
+        for i in range(batch_size // 2):
+            j = batch_size - i - 1 if batch_permutation is None else batch_permutation[i]
+            lam = lam_batch[i]
+            mixed_i = batch[i][0]
+            mixed_j = batch[j][0]
+            assert 0 <= lam <= 1.0
+            if lam < 1.:
+                if use_cutmix[i]:
+                    (yl, yh, xl, xh), lam = cutmix_bbox_and_lam(
+                        output.shape, lam, ratio_minmax=self.cutmix_minmax, correct_lam=self.correct_lam)
+                    patch_i = mixed_i[:, yl:yh, xl:xh].copy()
+                    mixed_i[:, yl:yh, xl:xh] = mixed_j[:, yl:yh, xl:xh]
+                    mixed_j[:, yl:yh, xl:xh] = patch_i
+                    lam_batch[i] = lam
+                else:
+                    mixed_temp = mixed_i.astype(np.float32) * lam + mixed_j.astype(np.float32) * (1 - lam)
+                    mixed_j = mixed_j.astype(np.float32) * lam + mixed_i.astype(np.float32) * (1 - lam)
+                    mixed_i = mixed_temp
+                    np.rint(mixed_j, out=mixed_j)
+                    np.rint(mixed_i, out=mixed_i)
+            output[i] += torch.from_numpy(mixed_i.astype(np.uint8))
+            output[j] += torch.from_numpy(mixed_j.astype(np.uint8))
+        lam_batch = np.concatenate((lam_batch, lam_batch[::-1]))
+        return torch.tensor(lam_batch).unsqueeze(1)
+
+    def _mix_batch_collate(self, output, batch, batch_permutation=None):
+        batch_size = len(batch)
+        lam, use_cutmix = self._params_per_batch()
+        if use_cutmix:
+            (yl, yh, xl, xh), lam = cutmix_bbox_and_lam(
+                output.shape, lam, ratio_minmax=self.cutmix_minmax, correct_lam=self.correct_lam)
+        for i in range(batch_size):
+            j = batch_size - i - 1 if batch_permutation is None else batch_permutation[i]
+            mixed = batch[i][0]
+            if lam != 1.:
+                if use_cutmix:
+                    mixed = mixed.copy()  # don't want to modify the original while iterating
+                    mixed[:, yl:yh, xl:xh] = batch[j][0][:, yl:yh, xl:xh]
+                else:
+                    mixed = mixed.astype(np.float32) * lam + batch[j][0].astype(np.float32) * (1 - lam)
+                    np.rint(mixed, out=mixed)
+            output[i] += torch.from_numpy(mixed.astype(np.uint8))
+        return lam
+
+    def __call__(self, batch, _=None):
+        batch_size = len(batch)
+        assert batch_size % 2 == 0, 'Batch size should be even when using this'
+        half = 'half' in self.mode
+        res_weights = torch.tensor([b[3] for b in batch], dtype=torch.float32)
+        rescaled_samples = torch.where(res_weights>1)[0]
+        unrescaled_samples = torch.where(res_weights<=1)[0]
+        batch_permuted = torch.zeros(x.shape[0], dtype=torch.int64)
+        batch_permuted[rescaled_samples] = rescaled_samples.flip(0)
+        batch_permuted[unrescaled_samples] = unrescaled_samples.flip(0)
+        if half:
+            batch_size //= 2
+        output = torch.zeros((batch_size, *batch[0][0].shape), dtype=torch.uint8)
+        if self.mode == 'elem' or self.mode == 'half':
+            lam = self._mix_elem_collate(output, batch, half=half, batch_permuted)
+        elif self.mode == 'pair':
+            lam = self._mix_pair_collate(output, batch, batch_permuted)
+        else:
+            lam = self._mix_batch_collate(output, batch, batch_permuted)
+        target = torch.tensor([b[1] for b in batch], dtype=torch.int64)
+        target = mixup_target(target, self.num_classes, lam, self.label_smoothing, device='cpu')
+        target = target[:batch_size]
+
+        #InfoBatch Modification. If further score spliting is needed, modify here
+        indices = torch.tensor([b[2] for b in batch], dtype=torch.int64)
+        #######################
+
+        return output, target, indices, res_weights, lam
