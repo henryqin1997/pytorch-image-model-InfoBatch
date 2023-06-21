@@ -42,6 +42,8 @@ from timm.optim import create_optimizer_v2, optimizer_kwargs
 from timm.scheduler import create_scheduler_v2, scheduler_kwargs
 from timm.utils import ApexScaler, NativeScaler
 
+import infobatch as InfoBatchV1
+import infobatch_ema as InfoBatchV2
 
 try:
     from apex import amp
@@ -588,11 +590,9 @@ def main():
 
     #infobatch
     if args.infobatch_version=='v2':
-        from infobatch_ema import *
-        dataset_train = InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
+        dataset_train = InfoBatchV2.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
     else:
-        from infobatch import *
-        dataset_train = InfoBatch(dataset_train,ratio = 0.5, num_epoch = args.epochs, delta=0.85)
+        dataset_train = InfoBatchV1.InfoBatch(dataset_train,ratio = 0.5, num_epoch = args.epochs, delta=0.85)
     ##########
 
     dataset_eval = create_dataset(
