@@ -629,7 +629,7 @@ def main():
         else:
             print("Using MixupInfoBatch{}".format(args.infobatch_version)
 #             mixup_fn = Mixup(**mixup_args)
-            if args.infobatch_version == 'v2':
+            if args.infobatch_version=='v2':
                 mixup_fn = MixupInfoBatchV2(**mixup_args)
             else:
                 mixup_fn = MixupInfoBatchV3(**mixup_args)
