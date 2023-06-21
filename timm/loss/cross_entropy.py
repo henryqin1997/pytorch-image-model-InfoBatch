@@ -88,7 +88,7 @@ class SoftTargetCrossEntropyInfoV3(nn.Module):
             if isinstance(lam,torch.Tensor):
                 p = F.softmax(x,dim=-1)
                 scores = torch.max(torch.abs(target-p),dim=-1)[0]
-                scores = (scores + scores[batch_permuted])/(lam+(1-lam)[batch_permuted]))
+                scores = (scores + scores[batch_permuted])/(lam+(1-lam)[batch_permuted])
             else:
                 if lam>0.5:
                     original_targets = torch.max(target,dim=-1)[1]
