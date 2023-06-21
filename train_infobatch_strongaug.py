@@ -36,7 +36,7 @@ from timm.data import create_dataset, create_loader, create_loader_infobatch, re
                       FastCollateMixupInfoBatchV2,FastCollateMixupInfoBatchV3, AugMixDataset
 from timm.layers import convert_splitbn_model, convert_sync_batchnorm, set_fast_norm
 from timm.loss import JsdCrossEntropy, SoftTargetCrossEntropy, SoftTargetCrossEntropyNoReduction, \
-                      SoftTargetCrossEntropyInfoV2, SoftTargetCrossEntropyInfoV3，BinaryCrossEntropy, LabelSmoothingCrossEntropy
+                      SoftTargetCrossEntropyInfoV2, SoftTargetCrossEntropyInfoV3, BinaryCrossEntropy, LabelSmoothingCrossEntropy
 from timm.models import create_model, safe_model_name, resume_checkpoint, load_checkpoint, model_parameters
 from timm.optim import create_optimizer_v2, optimizer_kwargs
 from timm.scheduler import create_scheduler_v2, scheduler_kwargs
