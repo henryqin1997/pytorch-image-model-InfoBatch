@@ -627,7 +627,7 @@ def main():
             else:
                 collate_fn = FastCollateMixupInfoBatchV3(**mixup_args)
         else:
-            print("Using MixupInfoBatch{}".format(args.infobatch_version)
+            print("Using MixupInfoBatch{}".format(args.infobatch_version))
             #mixup_fn = Mixup(**mixup_args)
             if args.infobatch_version=='v2':
                 mixup_fn = MixupInfoBatchV2(**mixup_args)
