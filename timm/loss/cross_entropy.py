@@ -82,7 +82,7 @@ class SoftTargetCrossEntropyInfoV3(nn.Module):
         with torch.no_grad():
             rescaled_samples = torch.where(res_weights>1)[0]
             unrescaled_samples = torch.where(res_weights<=1)[0]
-            batch_permuted = torch.zeros(x.shape[0], dtype=torch.int64, x.device)
+            batch_permuted = torch.zeros(x.shape[0], dtype=torch.int64, device=x.device)
             batch_permuted[rescaled_samples] = rescaled_samples.flip(0)
             batch_permuted[unrescaled_samples] = unrescaled_samples.flip(0)
             if isinstance(lam,torch.Tensor):
