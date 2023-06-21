@@ -878,7 +878,7 @@ class FastCollateMixupInfoBatchV3(Mixup):
         res_weights = torch.tensor([b[3] for b in batch], dtype=torch.float32)
         rescaled_samples = torch.where(res_weights>1)[0]
         unrescaled_samples = torch.where(res_weights<=1)[0]
-        batch_permuted = torch.zeros(x.shape[0], dtype=torch.int64)
+        batch_permuted = torch.zeros(len(batch), dtype=torch.int64)
         batch_permuted[rescaled_samples] = rescaled_samples.flip(0)
         batch_permuted[unrescaled_samples] = unrescaled_samples.flip(0)
         if half:
