@@ -93,11 +93,11 @@ class SoftTargetCrossEntropyInfoV3(nn.Module):
                 if lam>0.5:
                     original_targets = torch.max(target,dim=-1)[1]
                 else:
-                    original_targets = torch.max(target,dim=-1)[1][[batch_permuted]]
+                    original_targets = torch.max(target,dim=-1)[1][batch_permuted]
                 p = F.softmax(x,dim=-1)
                 selfscores = torch.abs(target[range(len(target)),original_targets]-p[range(len(target)),original_targets])
-                mixscores = torch.abs(target[range(len(target)),original_targets[[batch_permuted]]]-p[range(len(target)),original_targets[[batch_permuted]]])
-                scores = selfscores + mixscores[[batch_permuted]]
+                mixscores = torch.abs(target[range(len(target)),original_targets[batch_permuted]]-p[range(len(target)),original_targets[batch_permuted]])
+                scores = selfscores + mixscores[batch_permuted]
 
         loss = torch.sum(-target * F.log_softmax(x, dim=-1), dim=-1)
         return loss, scores

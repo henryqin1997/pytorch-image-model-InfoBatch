@@ -672,6 +672,7 @@ def create_loader_infobatch(
 
     loader_class = torch.utils.data.DataLoader
     if use_multi_epochs_loader:
+        print('Using MultiEpochsDataLoader')
         loader_class = MultiEpochsDataLoader
 
     loader_args = dict(

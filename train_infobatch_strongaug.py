@@ -936,7 +936,9 @@ def train_one_epoch_infobatch(
         with amp_autocast():
             output = model(input)
             loss, scores = loss_fn(output, target, lam) if args.infobatch_version=='v2' else loss_fn(output, target, lam, weight)
-
+        print('indices:',indices)
+        print('weight',weight)
+        print('scores',scores)
         #infobatch modification
         if dataset_train is not None:
             if args.distributed:
