@@ -592,7 +592,8 @@ def main():
     if args.infobatch_version=='v2':
         dataset_train = InfoBatchV2.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
     else:
-        dataset_train = InfoBatchV1.InfoBatch(dataset_train,ratio = 0.5, num_epoch = args.epochs, delta=0.85)
+        dataset_train = InfoBatchV2.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
+#         dataset_train = InfoBatchV1.InfoBatch(dataset_train,ratio = 0.5, num_epoch = args.epochs, delta=0.85)
     ##########
 
     dataset_eval = create_dataset(
