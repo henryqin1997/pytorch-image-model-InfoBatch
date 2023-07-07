@@ -44,6 +44,7 @@ from timm.utils import ApexScaler, NativeScaler
 
 import infobatch as InfoBatchV1
 import infobatch_ema as InfoBatchV2
+import infobatch_uncertainty as InfoBatch_unc
 
 try:
     from apex import amp
@@ -590,10 +591,10 @@ def main():
 
     #infobatch
     if args.infobatch_version=='v2':
-        dataset_train = InfoBatchV2.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
+#         dataset_train = InfoBatchV2.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
+        dataset_train = InfoBatch_unc.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
     else:
-        dataset_train = InfoBatchV2.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
-#         dataset_train = InfoBatchV1.InfoBatch(dataset_train,ratio = 0.5, num_epoch = args.epochs, delta=0.85)
+        dataset_train = InfoBatchV1.InfoBatch(dataset_train,ratio = 0.5, num_epoch = args.epochs, delta=0.85)
     ##########
 
     dataset_eval = create_dataset(
