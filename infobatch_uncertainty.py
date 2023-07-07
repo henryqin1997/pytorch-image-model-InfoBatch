@@ -13,7 +13,7 @@ from operator import itemgetter
 from typing import Iterator, List, Optional, Union
 
 class InfoBatch(Dataset):
-    def __init__(self, dataset, ratio = 0.5, momentum = 0.8, num_epoch=None, delta = None):
+    def __init__(self, dataset, ratio = 0.5, momentum = 0.8, batch_size = None, num_epoch=None, delta = None):
         self.dataset = dataset
         self.ratio = ratio
         self.num_epoch = num_epoch
@@ -24,6 +24,7 @@ class InfoBatch(Dataset):
         self.sliding_idx = np.full(len(self.dataset),0)
         self.transform = dataset.transform
         self.weights = np.full(len(self.dataset),1.)
+        self.batch_size = batch_size
         self.save_num = 0
 
     def __setscore__(self, indices, values):
@@ -32,6 +33,32 @@ class InfoBatch(Dataset):
         self.sliding_window[indices,self.sliding_idx[indices]] = delta_values
         self.sliding_idx[indices] = (self.sliding_idx[indices] + 1) % 4
 
+    def __balance_weight__(self, perm):
+        # Put elements with recaled weight to start and end of batch balanced, so that cutmix with batch operation don't
+        # need to deal with weight.
+        if self.batch_size is None or self.batch_size<=0:
+            print('Batchsize not specified! Cannot balance weight for cutmix and mixup')
+            return perm
+
+        if torch.distributed.is_available():
+            num_replicas = torch.distributed.get_world_size()
+        else: num_replicas = 1
+
+        num_samples = math.ceil(len(perm) / num_replicas)
+
+        for cid in range(num_replicas):
+            rlimit = (cid+1)*num_samples
+            for l in range(cid*num_samples,min(rlimit,len(perm)),self.batch_size):
+                local_rebalence = []
+                remaining = []
+                r = min(l+self.batch_size,rlimit,len(perm))  #left close right open
+                for j in range(l,r):
+                    if self.weights[perm[j]] > 1:
+                        local_rebalence.append(perm[j])
+                    else:
+                        remaining.append(perm[j])
+                perm[l:r] = local_rebalence[:len(local_rebalence)//2] + remaining + local_rebalence[len(local_rebalence)//2:]
+        return perm
 
     def __len__(self):
         return len(self.dataset)
