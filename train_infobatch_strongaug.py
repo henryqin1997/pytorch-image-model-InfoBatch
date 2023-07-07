@@ -358,6 +358,7 @@ group.add_argument('--log-wandb', action='store_true', default=False,
 
 group = parser.add_argument_group('InfoBatch parameters')
 group.add_argument('--infobatch-version', type=str, default='v2')
+group.add_argument('--infobatch-momentum', type=float, default=0.8)
 group.add_argument('--infobatch-max-weight', action='store_true', default=False)
 
 
@@ -594,7 +595,7 @@ def main():
 #         dataset_train = InfoBatchV2.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
         dataset_train = InfoBatch_unc.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
     else:
-        dataset_train = InfoBatchV1.InfoBatch(dataset_train,ratio = 0.5, num_epoch = args.epochs, delta=0.85)
+        dataset_train = InfoBatchV1.InfoBatch(dataset_train,ratio = 0.5, momentum=args.infobatch_momentum, num_epoch = args.epochs, delta=0.85)
     ##########
 
     dataset_eval = create_dataset(
