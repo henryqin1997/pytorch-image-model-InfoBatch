@@ -22,7 +22,7 @@ from collections import OrderedDict
 from contextlib import suppress
 from datetime import datetime
 from functools import partial
-
+from infobatch_nores import *
 
 import torch
 import torch.nn as nn
@@ -31,20 +31,13 @@ import yaml
 from torch.nn.parallel import DistributedDataParallel as NativeDDP
 
 from timm import utils
-from timm.data import create_dataset, create_loader, create_loader_infobatch, resolve_data_config, \
-                      Mixup,MixupInfoBatchV2,MixupInfoBatchV3, FastCollateMixup, \
-                      FastCollateMixupInfoBatchV2,FastCollateMixupInfoBatchV3, AugMixDataset
+from timm.data import create_dataset, create_loader, create_loader_infobatch, resolve_data_config, Mixup, FastCollateMixup, FastCollateMixupInfoBatch, AugMixDataset
 from timm.layers import convert_splitbn_model, convert_sync_batchnorm, set_fast_norm
-from timm.loss import JsdCrossEntropy, SoftTargetCrossEntropy, SoftTargetCrossEntropyNoReduction, \
-                      SoftTargetCrossEntropyInfoV2, SoftTargetCrossEntropyInfoV3, BinaryCrossEntropy, LabelSmoothingCrossEntropy
+from timm.loss import JsdCrossEntropy, SoftTargetCrossEntropy, SoftTargetCrossEntropyNoReduction, BinaryCrossEntropy, LabelSmoothingCrossEntropy
 from timm.models import create_model, safe_model_name, resume_checkpoint, load_checkpoint, model_parameters
 from timm.optim import create_optimizer_v2, optimizer_kwargs
 from timm.scheduler import create_scheduler_v2, scheduler_kwargs
 from timm.utils import ApexScaler, NativeScaler
-
-import infobatch as InfoBatchV1
-import infobatch_ema as InfoBatchV2
-import infobatch_uncertainty as InfoBatch_unc
 
 try:
     from apex import amp
@@ -356,11 +349,6 @@ group.add_argument('--use-multi-epochs-loader', action='store_true', default=Fal
 group.add_argument('--log-wandb', action='store_true', default=False,
                    help='log training and validation metrics to wandb')
 
-group = parser.add_argument_group('InfoBatch parameters')
-group.add_argument('--infobatch-version', type=str, default='v2')
-group.add_argument('--infobatch-momentum', type=float, default=0.8)
-group.add_argument('--infobatch-max-weight', action='store_true', default=False)
-
 
 def _parse_args():
     # Do we have a config file to parse?
@@ -591,12 +579,7 @@ def main():
     )
 
     #infobatch
-    if args.infobatch_version=='v2':
-        dataset_train = InfoBatchV2.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
-    elif args.infobatch_version=='unc':
-        dataset_train = InfoBatch_unc.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
-    else:
-        dataset_train = InfoBatchV1.InfoBatch(dataset_train,ratio = 0.5, momentum=args.infobatch_momentum, num_epoch = args.epochs, delta=0.85)
+    dataset_train = InfoBatch(dataset_train, ratio = 0.5, num_epoch = args.epochs, delta=0.85)
     ##########
 
     dataset_eval = create_dataset(
@@ -626,17 +609,11 @@ def main():
         )
         if args.prefetcher:
             assert not num_aug_splits  # collate conflict (need to support deinterleaving in collate mixup)
-            if args.infobatch_version=='v2' or args.infobatch_version=='unc':
-                collate_fn = FastCollateMixupInfoBatchV2(**mixup_args)
-            else:
-                collate_fn = FastCollateMixupInfoBatchV3(**mixup_args)
+            collate_fn = FastCollateMixupInfoBatch(**mixup_args)
         else:
-            print("Using MixupInfoBatch{}".format(args.infobatch_version))
-            #mixup_fn = Mixup(**mixup_args)
-            if args.infobatch_version=='v2' or args.infobatch_version=='unc':
-                mixup_fn = MixupInfoBatchV2(**mixup_args)
-            else:
-                mixup_fn = MixupInfoBatchV3(**mixup_args)
+            print("original mixup not adapted yet")
+            mixup_fn = Mixup(**mixup_args)
+
     # wrap dataset in AugMix helper
     if num_aug_splits > 1:
         dataset_train = AugMixDataset(dataset_train, num_splits=num_aug_splits)
@@ -674,8 +651,6 @@ def main():
         device=device,
         use_multi_epochs_loader=args.use_multi_epochs_loader,
         worker_seeding=args.worker_seeding,
-        version=args.infobatch_version,
-        max_weight=args.infobatch_max_weight
     )
 
     eval_workers = args.workers
@@ -710,13 +685,8 @@ def main():
             train_loss_fn = BinaryCrossEntropy(target_threshold=args.bce_target_thresh,reduction='none')
         else:
 #             train_loss_fn = SoftTargetCrossEntropy()
-            print('mixup is active, using SoftTargetCrossEntropyInfo{}'.format(args.infobatch_version))
-            if args.infobatch_version=='v2' or args.infobatch_version=='unc':
-                train_loss_fn = SoftTargetCrossEntropyInfoV2()
-            elif args.infobatch_version=='v3':
-                train_loss_fn = SoftTargetCrossEntropyInfoV3()
-            else:
-                raise ValueError('infobatch_version {} not recognized'.format(args.infobatch_version))
+            print('mixup is active, using SoftTargetCrossEntropyNoReduction')
+            train_loss_fn = SoftTargetCrossEntropyNoReduction()
     elif args.smoothing:
         print('mixup is not active, using smoothed entropyloss')
         if args.bce_loss:
@@ -924,7 +894,9 @@ def train_one_epoch_infobatch(
     last_idx = num_batches_per_epoch - 1
     num_updates = epoch * num_batches_per_epoch
 
-    for batch_idx, (input, target, indices, weight, lam) in enumerate(loader):
+    for batch_idx, (input, target, indices, weight) in enumerate(loader):
+        if epoch>1:
+            print(sum(weight>1))
         last_batch = batch_idx == last_idx
         data_time_m.update(time.time() - end)
         if not args.prefetcher:
@@ -933,23 +905,24 @@ def train_one_epoch_infobatch(
             indices, weight = indices.to(device),weight.to(device)
             #########################
             if mixup_fn is not None:
-                input, target, lam = mixup_fn(input, target)
+                input, target = mixup_fn(input, target)
         if args.channels_last:
             input = input.contiguous(memory_format=torch.channels_last)
 
         with amp_autocast():
             output = model(input)
-            loss, scores = loss_fn(output, target, lam) if (args.infobatch_version=='v2' or args.infobatch_version=='unc') else loss_fn(output, target, lam, weight)
+            loss = loss_fn(output, target)
 
         #infobatch modification
         if dataset_train is not None:
+            scores = loss
             if args.distributed:
-                low,high = InfoBatchV1.split_index(indices)
+                low,high = split_index(indices)
                 low,high = low.cuda(),high.cuda()
                 tuple = torch.stack([low,high,scores])
-                tuple_all = InfoBatchV1.concat_all_gather(tuple, dim=1)
+                tuple_all = concat_all_gather(tuple, dim=1)
                 low_all, high_all, scores_all = tuple_all[0].type(torch.int), tuple_all[1].type(torch.int), tuple_all[2]
-                indices_all = InfoBatchV1.recombine_index(low_all,high_all)
+                indices_all = recombine_index(low_all,high_all)
                 dataset_train.__setscore__(indices_all.detach().cpu().numpy(), scores_all.detach().cpu().numpy())
             else:
                 dataset_train.__setscore__(indices.detach().cpu().numpy(), scores.detach().cpu().numpy())

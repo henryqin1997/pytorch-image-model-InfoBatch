@@ -13,20 +13,18 @@ from operator import itemgetter
 from typing import Iterator, List, Optional, Union
 
 class InfoBatch(Dataset):
-    def __init__(self, dataset, ratio = 0.5, momentum = 1., batch_size = None, num_epoch=None, delta = None):
+    def __init__(self, dataset, ratio = 0.5, num_epoch=None, delta = None):
         self.dataset = dataset
         self.ratio = ratio
         self.num_epoch = num_epoch
         self.delta = delta
-        self.scores = np.full(len(self.dataset),1.)
+        self.scores = np.full(len(self.dataset),7)
         self.transform = dataset.transform
         self.weights = np.full(len(self.dataset),1.)
         self.save_num = 0
-        self.momentum = momentum
-        self.batch_size = batch_size
 
     def __setscore__(self, indices, values):
-        self.scores[indices] = self.momentum * values + (1.-self.momentum)*self.scores[indices]
+        self.scores[indices] = values
 
     def __len__(self):
         return len(self.dataset)
@@ -40,60 +38,26 @@ class InfoBatch(Dataset):
             data = dataset.transform(data)
         return data, target, index, weight
 
-    def __balance_weight__(self, perm):
-        # Put elements with recaled weight to start and end of batch balanced, so that cutmix with batch operation don't
-        # need to deal with weight.
-        if self.batch_size is None or self.batch_size<=0:
-            print('Batchsize not specified! Cannot balance weight for cutmix and mixup')
-            return perm
-
-        if torch.distributed.is_available():
-            num_replicas = torch.distributed.get_world_size()
-        else: num_replicas = 1
-
-        num_samples = math.ceil(len(perm) / num_replicas)
-
-        for cid in range(num_replicas):
-            rlimit = (cid+1)*num_samples
-            for l in range(cid*num_samples,min(rlimit,len(perm)),self.batch_size):
-                local_rebalence = []
-                remaining = []
-                r = min(l+self.batch_size,rlimit,len(perm))  #left close right open
-                for j in range(l,r):
-                    if self.weights[perm[j]] > 1:
-                        local_rebalence.append(perm[j])
-                    else:
-                        remaining.append(perm[j])
-                perm[l:r] = local_rebalence[:len(local_rebalence)//2] + remaining + local_rebalence[len(local_rebalence)//2:]
-        return perm
-
-#     def prune(self, leq = False):  #code for test
-#         well_learned_samples = list(range(len(self.dataset)))
-#         selected = np.random.choice(well_learned_samples, int(self.ratio*len(well_learned_samples)),replace=False)
-#         self.weights[selected]=1./self.ratio
-#         np.random.shuffle(well_learned_samples)
-#         return self.__balance_weight__(well_learned_samples)
-
-    def prune(self, leq = False):
+    def prune(self):
         # prune samples that are well learned, rebalence the weight by scaling up remaining
         # well learned samples' learning rate to keep estimation about the same
         # for the next version, also consider new class balance
 
-        b = self.scores<=self.scores.mean() if leq else self.scores<self.scores.mean()
+        b = self.scores<self.scores.mean()
         well_learned_samples = np.where(b)[0]
         pruned_samples = []
         pruned_samples.extend(np.where(np.invert(b))[0])
         selected = np.random.choice(well_learned_samples, int(self.ratio*len(well_learned_samples)),replace=False)
         self.reset_weights()
         if len(selected)>0:
-            print('Entered rescaling')
-            self.weights[selected]=1./self.ratio
+#             print('Entered rescaling')
+#             self.weights[selected]=1./self.ratio
             pruned_samples.extend(selected)
-            print(str(sum(self.weights>1))+'samples are rescaled')
+#             print(str(sum(self.weights>1))+'samples are rescaled')
         print('Cut {} samples for next iteration'.format(len(self.dataset)-len(pruned_samples)))
         self.save_num += len(self.dataset)-len(pruned_samples)
         np.random.shuffle(pruned_samples)
-        return self.__balance_weight__(pruned_samples)
+        return pruned_samples
 
     def pruning_sampler(self):
         return InfoBatchSampler(self, self.num_epoch, self.delta)
@@ -136,7 +100,7 @@ class InfoBatchSampler():
                 self.infobatch_dataset.reset_weights()
             self.seq = self.infobatch_dataset.no_prune()
         else:
-            self.seq = self.infobatch_dataset.prune(self.seed>1)
+            self.seq = self.infobatch_dataset.prune()
         self.ite = iter(self.seq)
         self.new_length = len(self.seq)
 
@@ -203,7 +167,6 @@ class DistributedSamplerWrapper(DistributedSampler):
         num_replicas: Optional[int] = None,
         rank: Optional[int] = None,
         shuffle: bool = True,
-        batch_size: Optional[int] = None
     ):
         """
         Args:
@@ -239,31 +202,10 @@ class DistributedSamplerWrapper(DistributedSampler):
             )
         else:
             self.num_samples = math.ceil(len(self.dataset) / self.num_replicas)  # type: ignore[arg-type]
-
         self.total_size = self.num_samples * self.num_replicas
-
-        indices = list(range(len(self.dataset)))  # type: ignore[arg-type]
-
-        if not self.drop_last:
-            # add extra samples to make it evenly divisible
-            padding_size = self.total_size - len(indices)
-            if padding_size <= len(indices):
-                indices += indices[:padding_size]
-            else:
-                indices += (indices * math.ceil(padding_size / len(indices)))[:padding_size]
-        else:
-            # remove tail of data to make it evenly divisible.
-            indices = indices[:self.total_size]
-        assert len(indices) == self.total_size
-
-        indices = indices[self.rank*self.num_samples:(self.rank+1)*self.num_samples]
-        assert len(indices) == self.num_samples
-
-        indexes_of_indexes = indices
-#         indexes_of_indexes = super().__iter__()  # change this line
+        indexes_of_indexes = super().__iter__()
         subsampler_indexes = self.dataset
         return iter(itemgetter(*indexes_of_indexes)(subsampler_indexes))
-#         return iter(itemgetter(*indexes_of_indexes)(subsampler_indexes))
 
 
 @torch.no_grad()
