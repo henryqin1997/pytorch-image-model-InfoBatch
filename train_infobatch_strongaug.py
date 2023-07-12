@@ -674,7 +674,7 @@ def main():
         device=device,
         use_multi_epochs_loader=args.use_multi_epochs_loader,
         worker_seeding=args.worker_seeding,
-        version='v3' if args.infobatch_version=='v3' else v2,
+        version='v3' if args.infobatch_version=='v3' else 'v2',
         max_weight=args.infobatch_max_weight
     )
 
