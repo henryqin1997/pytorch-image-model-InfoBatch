@@ -19,7 +19,7 @@ class InfoBatch(Dataset):
         self.num_epoch = num_epoch
         self.delta = delta
         self.alpha = momentum
-        self.ema = np.full(len(self.dataset),0)
+        self.ema = np.full(len(self.dataset),1.)
         self.sliding_window = np.full((len(self.dataset),4),0)
         self.sliding_idx = np.full(len(self.dataset),0)
         self.transform = dataset.transform
