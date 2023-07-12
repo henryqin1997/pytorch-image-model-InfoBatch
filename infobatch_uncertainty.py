@@ -28,7 +28,7 @@ class InfoBatch(Dataset):
         self.save_num = 0
 
     def __setscore__(self, indices, values):
-        self.ema[indices] = np.where(self.ema[indices]>0,1-self.alpha)*self.ema[indices] + self.alpha*values,values)
+        self.ema[indices] = np.where(self.ema[indices]>0, (1-self.alpha)*self.ema[indices] + self.alpha*values,values)
         delta_values = np.abs(values - self.ema[indices])
         self.sliding_window[indices,self.sliding_idx[indices]] = delta_values
         self.sliding_idx[indices] = (self.sliding_idx[indices] + 1) % 4
