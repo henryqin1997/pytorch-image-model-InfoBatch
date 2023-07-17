@@ -42,6 +42,14 @@ class InfoBatch(Dataset):
             data = dataset.transform(data)
         return data, target, index, weight
 
+    def __bucketize__(self,quantile_thresholds,leq=False):
+        select_func = bisect.bisect_left if leq else bisect.bisect_right
+        well_learned_samples = [[] for i in range(len(quantile_thresholds)+1)]
+        for id,value in enumerate(self.scores):
+            well_learned_samples[select_func(quantile_thresholds,value)].append(id)
+        return well_learned_samples
+
+
     def __balance_weight__(self, perm):
         # Put elements with recaled weight to start and end of batch balanced, so that cutmix with batch operation don't
         # need to deal with weight.
