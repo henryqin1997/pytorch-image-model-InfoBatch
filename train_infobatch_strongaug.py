@@ -45,6 +45,7 @@ from timm.utils import ApexScaler, NativeScaler
 import infobatch as InfoBatchV1
 import infobatch_ema as InfoBatchV2
 import infobatch_uncertainty as InfoBatch_unc
+import infobatch_quantile
 
 try:
     from apex import amp
@@ -360,7 +361,7 @@ group = parser.add_argument_group('InfoBatch parameters')
 group.add_argument('--infobatch-version', type=str, default='v2')
 group.add_argument('--infobatch-momentum', type=float, default=0.8)
 group.add_argument('--infobatch-max-weight', action='store_true', default=False)
-
+group.add_argument('--infobatch-quantile', default=[20,85], nargs='+', type=int)
 
 def _parse_args():
     # Do we have a config file to parse?
@@ -592,12 +593,16 @@ def main():
 
     #infobatch
     if args.infobatch_version=='v2':
-        dataset_train = InfoBatchV2.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
+        dataset_train = InfoBatchV2.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.825)
     elif args.infobatch_version=='unc':
-        dataset_train = InfoBatch_unc.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.85)
+        dataset_train = InfoBatch_unc.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.825)
+    elif args.infobatch_version=='quantile':
+        dataset_train = InfoBatch_quantile.InfoBatch(dataset_train,ratio =[0.25,0.5], batch_size = args.batch_size, num_epoch = args.epochs, delta=0.825, quantile=args.infobatch_quantile)
     else:
-        dataset_train = InfoBatchV1.InfoBatch(dataset_train,ratio = 0.5, momentum=args.infobatch_momentum, num_epoch = args.epochs, delta=0.85)
+        dataset_train = InfoBatchV1.InfoBatch(dataset_train,ratio = 0.5, momentum=args.infobatch_momentum, num_epoch = args.epochs, delta=0.825)
     ##########
+
+    use_v2 = args.infobatch_version=='v2' or args.infobatch_version=='unc' or args.infobatch_version=='quantile'
 
     dataset_eval = create_dataset(
         args.dataset,
@@ -626,14 +631,14 @@ def main():
         )
         if args.prefetcher:
             assert not num_aug_splits  # collate conflict (need to support deinterleaving in collate mixup)
-            if args.infobatch_version=='v2' or args.infobatch_version=='unc':
+            if use_v2:
                 collate_fn = FastCollateMixupInfoBatchV2(**mixup_args)
             else:
                 collate_fn = FastCollateMixupInfoBatchV3(**mixup_args)
         else:
             print("Using MixupInfoBatch{}".format(args.infobatch_version))
             #mixup_fn = Mixup(**mixup_args)
-            if args.infobatch_version=='v2' or args.infobatch_version=='unc':
+            if use_v2:
                 mixup_fn = MixupInfoBatchV2(**mixup_args)
             else:
                 mixup_fn = MixupInfoBatchV3(**mixup_args)
@@ -711,7 +716,7 @@ def main():
         else:
 #             train_loss_fn = SoftTargetCrossEntropy()
             print('mixup is active, using SoftTargetCrossEntropyInfo{}'.format(args.infobatch_version))
-            if args.infobatch_version=='v2' or args.infobatch_version=='unc':
+            if use_v2:
                 train_loss_fn = SoftTargetCrossEntropyInfoV2()
             elif args.infobatch_version=='v3':
                 train_loss_fn = SoftTargetCrossEntropyInfoV3()
@@ -939,7 +944,7 @@ def train_one_epoch_infobatch(
 
         with amp_autocast():
             output = model(input)
-            loss, scores = loss_fn(output, target, lam) if (args.infobatch_version=='v2' or args.infobatch_version=='unc') else loss_fn(output, target, lam, weight)
+            loss, scores = loss_fn(output, target, lam) if use_v2 else loss_fn(output, target, lam, weight)
 
         #infobatch modification
         if dataset_train is not None:

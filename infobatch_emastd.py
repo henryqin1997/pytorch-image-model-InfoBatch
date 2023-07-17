@@ -13,25 +13,35 @@ from operator import itemgetter
 from typing import Iterator, List, Optional, Union
 
 class InfoBatch(Dataset):
-    def __init__(self, dataset, ratio = 0.5, momentum = 0.8, batch_size = None, num_epoch=None, delta = None):
+    def __init__(self, dataset, ratio = 0.5, momentum = 1., batch_size = None, num_epoch=None, delta = None):
         self.dataset = dataset
         self.ratio = ratio
         self.num_epoch = num_epoch
         self.delta = delta
-        self.alpha = momentum
         self.ema = np.full(len(self.dataset),0.)
-        self.sliding_window = np.full((len(self.dataset),4),0)
-        self.sliding_idx = np.full(len(self.dataset),0)
+        self.varema = np.full(len(self.dataset),0.)
         self.transform = dataset.transform
         self.weights = np.full(len(self.dataset),1.)
-        self.batch_size = batch_size
         self.save_num = 0
+        self.momentum = momentum
+        self.batch_size = batch_size
 
     def __setscore__(self, indices, values):
         self.ema[indices] = np.where(self.ema[indices]>0, (1-self.alpha)*self.ema[indices] + self.alpha*values,values)
-        delta_values = np.abs(values - self.ema[indices])
-        self.sliding_window[indices,self.sliding_idx[indices]] = delta_values
-        self.sliding_idx[indices] = (self.sliding_idx[indices] + 1) % 4
+        vars = (values - self.ema[indices])**2
+        self.varema[indices] = (1-self.alpha)*self.varema[indices] + self.alpha*vars
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        data, target = self.dataset[index]
+        weight = self.weights[index]
+        if self.transform:
+            data = self.transform(data)
+        elif self.dataset.transform:
+            data = dataset.transform(data)
+        return data, target, index, weight
 
     def __balance_weight__(self, perm):
         # Put elements with recaled weight to start and end of batch balanced, so that cutmix with batch operation don't
@@ -60,23 +70,18 @@ class InfoBatch(Dataset):
                 perm[l:r] = local_rebalence[:len(local_rebalence)//2] + remaining + local_rebalence[len(local_rebalence)//2:]
         return perm
 
-    def __len__(self):
-        return len(self.dataset)
-
-    def __getitem__(self, index):
-        data, target = self.dataset[index]
-        weight = self.weights[index]
-        if self.transform:
-            data = self.transform(data)
-        elif self.dataset.transform:
-            data = dataset.transform(data)
-        return data, target, index, weight
+#     def prune(self, leq = False):  #code for test
+#         well_learned_samples = list(range(len(self.dataset)))
+#         selected = np.random.choice(well_learned_samples, int(self.ratio*len(well_learned_samples)),replace=False)
+#         self.weights[selected]=1./self.ratio
+#         np.random.shuffle(well_learned_samples)
+#         return self.__balance_weight__(well_learned_samples)
 
     def prune(self, leq = False):
         # prune samples that are well learned, rebalence the weight by scaling up remaining
         # well learned samples' learning rate to keep estimation about the same
         # for the next version, also consider new class balance
-        scores = self.ema + np.max(self.sliding_window,-1)
+        scores = self.ema + 2*np.sqrt(self.varema)
         b = scores<=scores.mean() if leq else scores<scores.mean()
         well_learned_samples = np.where(b)[0]
         pruned_samples = []
