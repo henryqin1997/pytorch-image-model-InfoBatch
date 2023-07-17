@@ -597,7 +597,7 @@ def main():
     elif args.infobatch_version=='unc':
         dataset_train = InfoBatch_unc.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.825)
     elif args.infobatch_version=='quantile':
-        dataset_train = InfoBatch_quantile.InfoBatch(dataset_train,ratio =[0.25,0.5], batch_size = args.batch_size, num_epoch = args.epochs, delta=0.825, quantile=args.infobatch_quantile)
+        dataset_train = infobatch_quantile.InfoBatch(dataset_train,ratio =[0.25,0.5], batch_size = args.batch_size, num_epoch = args.epochs, delta=0.825, quantile=args.infobatch_quantile)
     else:
         dataset_train = InfoBatchV1.InfoBatch(dataset_train,ratio = 0.5, momentum=args.infobatch_momentum, num_epoch = args.epochs, delta=0.825)
     ##########
