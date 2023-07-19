@@ -14,7 +14,7 @@ from typing import Iterator, List, Optional, Union
 import bisect
 
 class InfoBatch(Dataset):
-    def __init__(self, dataset, ratio=[0.25,0.5], momentum = 1., batch_size = None, num_epoch=None, delta = None, quantiles=[20,85]):
+    def __init__(self, dataset, ratio=[0.5], momentum = 1., batch_size = None, num_epoch=None, delta = None, quantiles=[64]):
         self.dataset = dataset
         self.ratio = ratio
         self.num_epoch = num_epoch
@@ -26,6 +26,7 @@ class InfoBatch(Dataset):
         self.momentum = momentum
         self.batch_size = batch_size
         self.quantiles = quantiles
+        assert len(ratio)==len(quantiles)
 
     def __setscore__(self, indices, values):
         self.scores[indices] = self.momentum * values + (1.-self.momentum)*self.scores[indices]
