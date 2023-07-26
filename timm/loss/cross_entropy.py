@@ -59,7 +59,7 @@ class SoftTargetCrossEntropyInfoV2(nn.Module):
                 p = F.softmax(x,dim=-1)
                 scores = torch.max(torch.abs(target-p),dim=-1)[0]
                 scores = (scores + scores.flip(0))/(lam+(1-lam).flip(0))
-            else:
+            else:  # lam*x1+(1-lam)*x2,
                 if lam>0.5:
                     original_targets = torch.max(target,dim=-1)[1]
                 else:
