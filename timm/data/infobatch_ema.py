@@ -13,7 +13,7 @@ from operator import itemgetter
 from typing import Iterator, List, Optional, Union
 
 class InfoBatch(Dataset):
-    def __init__(self, dataset, ratio = 0.5, momentum = 1, batch_size = None, num_epoch=None, delta = None):
+    def __init__(self, dataset, ratio = 0.5, momentum = 1., batch_size = None, num_epoch=None, delta = None, warmup = 0):
         self.dataset = dataset
         self.ratio = ratio
         self.num_epoch = num_epoch
@@ -24,9 +24,10 @@ class InfoBatch(Dataset):
         self.save_num = 0
         self.momentum = momentum
         self.batch_size = batch_size
+        self.warmup = warmup
 
     def __setscore__(self, indices, values):
-        self.scores[indices] = self.momentum * values + (1-self.momentum)*self.scores[indices]
+        self.scores[indices] = self.momentum * values + (1.-self.momentum)*self.scores[indices]
 
     def __len__(self):
         return len(self.dataset)
@@ -96,7 +97,7 @@ class InfoBatch(Dataset):
         return self.__balance_weight__(pruned_samples)
 
     def pruning_sampler(self):
-        return InfoBatchSampler(self, self.num_epoch, self.delta)
+        return InfoBatchSampler(self, self.num_epoch, self.delta, warmup=self.warmup)
 
     def no_prune(self):
         samples = list(range(len(self.dataset)))
@@ -121,17 +122,18 @@ class InfoBatch(Dataset):
 
 
 class InfoBatchSampler():
-    def __init__(self, infobatch_dataset, num_epoch = math.inf, delta = 1):
+    def __init__(self, infobatch_dataset, num_epoch = math.inf, delta = 1, warmup = 0):
         self.infobatch_dataset = infobatch_dataset
         self.seq = None
         self.stop_prune = num_epoch * delta
         self.seed = 0
+        self.warmup = 0
         self.reset()
 
     def reset(self):
         np.random.seed(self.seed)
         self.seed+=1
-        if self.seed>self.stop_prune:
+        if self.seed>self.stop_prune or self.seed<=self.warmup:
             if self.seed <= self.stop_prune+1:
                 self.infobatch_dataset.reset_weights()
             self.seq = self.infobatch_dataset.no_prune()
