@@ -363,6 +363,7 @@ group.add_argument('--infobatch-momentum', type=float, default=0.8)
 group.add_argument('--infobatch-max-weight', action='store_true', default=False)
 group.add_argument('--infobatch-quantile', default=[64], nargs='+', type=int)
 group.add_argument('--infobatch-ratios', default=[0.5], nargs='+', type=float)
+group.add_argument('--infobatch-warmup', default=0, type=int)
 
 def _parse_args():
     # Do we have a config file to parse?
@@ -594,7 +595,7 @@ def main():
 
     #infobatch
     if args.infobatch_version=='v2':
-        dataset_train = InfoBatchV2.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.825)
+        dataset_train = InfoBatchV2.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.825, warmup=args.infobatch_warmup)
     elif args.infobatch_version=='unc':
         dataset_train = InfoBatch_unc.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.825)
     elif args.infobatch_version=='quantile':
