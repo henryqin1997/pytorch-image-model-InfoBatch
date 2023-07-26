@@ -127,7 +127,7 @@ class InfoBatchSampler():
         self.seq = None
         self.stop_prune = num_epoch * delta
         self.seed = 0
-        self.warmup = 0
+        self.warmup = warmup
         self.reset()
 
     def reset(self):
