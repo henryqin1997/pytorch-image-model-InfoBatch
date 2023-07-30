@@ -44,6 +44,7 @@ from timm.utils import ApexScaler, NativeScaler
 
 import infobatch as InfoBatchV1
 import infobatch_ema as InfoBatchV2
+import infobatch_batch_diff
 import infobatch_uncertainty as InfoBatch_unc
 import infobatch_quantile
 
@@ -596,6 +597,8 @@ def main():
     #infobatch
     if args.infobatch_version=='v2':
         dataset_train = InfoBatchV2.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.825, warmup=args.infobatch_warmup)
+    elif args.infobatch_version=='batch_diff':
+        dataset_train = infobatch_batch_diff.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.825, warmup=args.infobatch_warmup)
     elif args.infobatch_version=='unc':
         dataset_train = InfoBatch_unc.InfoBatch(dataset_train,ratio = 0.5, batch_size = args.batch_size, num_epoch = args.epochs, delta=0.825)
     elif args.infobatch_version=='quantile':
@@ -604,7 +607,7 @@ def main():
         dataset_train = InfoBatchV1.InfoBatch(dataset_train,ratio = 0.5, momentum=args.infobatch_momentum, num_epoch = args.epochs, delta=0.825)
     ##########
 
-    use_v2 = args.infobatch_version=='v2' or args.infobatch_version=='unc' or args.infobatch_version=='quantile'
+    use_v2 = args.infobatch_version=='v2' or args.infobatch_version=='unc' or args.infobatch_version=='quantile' or args.infobatch_version=='batch_diff'
 
     dataset_eval = create_dataset(
         args.dataset,
