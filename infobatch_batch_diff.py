@@ -28,7 +28,7 @@ class InfoBatch(Dataset):
         self.running_mean = 0.
 
     def __setscore__(self, indices, values):
-        self.running_mean = self.momentum * values.mean() + (1.-self.momentum)*self.running_mean
+        self.running_mean = self.momentum * values.mean() + (1.-self.momentum)*self.running_mean if self.running_mean>0 else values.mean()
         self.scores[indices] = values-self.running_mean
 
     def __len__(self):
