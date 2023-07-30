@@ -947,7 +947,7 @@ def train_one_epoch_infobatch(
         if args.channels_last:
             input = input.contiguous(memory_format=torch.channels_last)
 
-        use_v2 = args.infobatch_version=='v2' or args.infobatch_version=='unc' or args.infobatch_version=='quantile'
+        use_v2 = args.infobatch_version=='v2' or args.infobatch_version=='unc' or args.infobatch_version=='quantile' or args.infobatch_version=='batch_diff'
 
         with amp_autocast():
             output = model(input)
