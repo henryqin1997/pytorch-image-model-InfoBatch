@@ -2,11 +2,12 @@
 This is code repo for the reported Timm experiment in InfoBatch Paper.
 To reproduce the experiments, run
 ```shell
-CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 ./distributed_train_infobatch_strongaug.sh 8 /data/common/ImageNet --model swin_tiny_patch4_window7_224 -b 256 --sched cosine --epochs 350\
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 ./distributed_train_infobatch_strongaug.sh 8 /data/common/ImageNet \
+        --model swin_tiny_patch4_window7_224 -b 256 --sched cosine --epochs 350 \
         --opt adamw -j 16 --warmup-lr 1e-6 --warmup-epochs 10  \
         --model-ema-decay 0.99992 --aa rand-m9-mstd0.5-inc1 --remode pixel \
         --reprob 0.3 --lr 20e-4 --min-lr 1e-6 --weight-decay .05 --drop 0.0 \
-        --drop-path .2 --img-size 224 --mixup 0.8 --cutmix 1.0 \
+        --drop-path .2 --img-size 224 --cutmix 1.0 \
         --smoothing 0.1 \
         --output /tmp/log/swin_tiny_100/ \
         --amp --model-ema \
