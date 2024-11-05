@@ -11,8 +11,8 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 ./distributed_train_infobatch_strongaug.sh 
         --smoothing 0.1 \
         --output /tmp/log/swin_tiny_100/ \
         --amp --model-ema \
-	    --sched-on-updates \
-	    --infobatch-warmup 20
+        --sched-on-updates \
+        --infobatch-warmup 20
 ```
 We adapte cutmix for the score computation of InfoBatch, and make a warmup for InfoBatch without pruning at the initial 20 epochs.
 
